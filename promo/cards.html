@@ -240,11 +240,11 @@ const CARDS = [
   () => {
     background(8); header(8);
     title(['지금 바로', '폴짝!'], 190, 96);
-    ppang(W / 2 - 150, 1000, 4);
-    bubble(['프로필 링크에서', '바로 시작해요!'], W / 2 - 150, 468, 40, W / 2 - 120, 548);
-    // what to remember, in the space to the right of 빵쌤
+    ppang(W / 2 + 160, 1000, 4);
+    bubble(['프로필 링크에서', '바로 시작해요!'], W / 2 + 160, 468, 40, W / 2 + 190, 548);
+    // what to remember, in the space to the left of 빵쌤
     [['1~5학년 19단계', PAL.green], ['10층마다 보스', PAL.red], ['우리 반 랭킹', PAL.gold], ['약점 학습 리포트', PAL.sky]].forEach(([s, col], i) => {
-      const x = 640, y = 410 + i * 112, w = 400;
+      const x = 48, y = 410 + i * 112, w = 400;
       box(x, y, w, 84, 'rgba(29,43,83,.92)', PAL.silver, 4);
       R(x + 16, y + 18, 48, 48, col); txt('★', x + 40, y + 43, 32, PAL.ink, { stroke: 0 });
       txt(s, x + 84, y + 43, 34, PAL.paper, { align: 'left', stroke: 6 });
@@ -253,7 +253,7 @@ const CARDS = [
     txt('▲ 프로필 링크 클릭!', W / 2, 1104, 54, PAL.ink, { stroke: 0 });
     txt('무료 · 광고 없음 · 회원가입 없음', W / 2, 1200, 32, PAL.green, { stroke: 6 });
     txt('만든이 빵쌤 (ppang_sem)', W / 2, 1245, 26, PAL.silver, { stroke: 6 });
-    [0, 2, 4, 6, 9].forEach((id, i) => sprite(id, 640 + i * 96, 940, 3.5));
+    [0, 2, 4, 6, 9].forEach((id, i) => sprite(id, 56 + i * 96, 940, 3.5));
   },
 ];
 const material = y => 0;
