@@ -3,7 +3,7 @@
 자연수 사칙연산 문제를 풀고 정답 계단으로 폴짝 뛰어 우주까지 올라가는 레트로 픽셀 게임이에요.
 만든이 빵쌤 (ppang_sem).
 
-**게임 하러 가기 → https://puk840-hue.github.io/semsem-jump/**
+**게임 하러 가기 → https://semsemjump.github.io/**
 
 휴대폰, 태블릿, 컴퓨터 브라우저에서 설치 없이 바로 할 수 있어요.
 

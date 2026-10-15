@@ -1481,7 +1481,7 @@ function deletePlayer() {
 // ---------- class ranking (Supabase). Only nickname, level, floor, item use and date leave this device ----------
 const SB_URL = 'https://fnxuoikvhwhuityqwpry.supabase.co';
 const SB_KEY = 'sb_publishable_Svk72pUabIEuEjuZv6gz_Q_9mZhVSOb'; // publishable: meant to sit in a web page
-const NET_MSG = '랭킹 서버에 연결하지 못했어요. 인터넷 연결을 확인하거나 puk840-hue.github.io/semsem-jump 에서 열어 주세요.';
+const NET_MSG = '랭킹 서버에 연결하지 못했어요. 인터넷 연결을 확인하거나 semsemjump.github.io 에서 열어 주세요.';
 const T_ERR = { pin: '비밀번호가 맞지 않아요.', locked: '비밀번호를 5번 틀려서 10분 동안 잠겼어요.', none: '학급을 찾을 수 없어요.', label: '학급 이름은 20자까지예요.' };
 async function rpc(fn, args) {
   const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
