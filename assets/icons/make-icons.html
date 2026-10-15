@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>셈셈 점프 아이콘</title>
+<body style="background:#333;display:flex;gap:16px;padding:16px;align-items:flex-start">
+<script>
+// Draws the home-screen icons: the green astronaut on a grass step against the night sky, as crisp pixel art.
+// Each icon is drawn on a small grid and enlarged by a whole number so every pixel stays square.
+// Open through the promo export server and call makeIcons() to save icon-512.png, icon-192.png, apple-touch-icon.png.
+const img = src => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
+const SIZES = [['icon-512', 512, 32], ['icon-192', 192, 32], ['apple-touch-icon', 180, 36]]; // name, px, grid
+async function makeIcons() {
+  const [tiles, chars] = await Promise.all([img('../sprites/tilemap_packed.png'), img('../sprites/tilemap-characters_packed.png')]);
+  const out = [];
+  for (const [name, px, L] of SIZES) {
+    const g = document.createElement('canvas'); g.width = g.height = L;
+    const x = g.getContext('2d');
+    // night sky in three bands with a few stars
+    [['#1D2B53', 0], ['#15203f', L * .45], ['#0b1024', L * .75]].forEach(([c, y]) => { x.fillStyle = c; x.fillRect(0, Math.round(y), L, L); });
+    x.fillStyle = '#FFF1E8';
+    [[3, 4], [L - 6, 6], [5, L - 14], [L - 4, L - 18], [L / 2 + 9, 2]].forEach(([sx, sy]) => x.fillRect(sx, sy, 1, 1));
+    x.fillStyle = '#FFEC27'; x.fillRect(L - 8, 3, 1, 1);
+    // grass step (top rows of the Kenney block) and the astronaut standing on it
+    const stepRows = L - 26, bx = (L - 18) / 2, ay = L - stepRows - 24;
+    x.drawImage(tiles, 0, 0, 18, stepRows, bx, L - stepRows, 18, stepRows);
+    x.drawImage(chars, 0, 0, 24, 24, (L - 24) / 2, ay, 24, 24);
+    const c = document.createElement('canvas'); c.width = c.height = px;
+    const cx = c.getContext('2d'); cx.imageSmoothingEnabled = false;
+    cx.drawImage(g, 0, 0, px, px);
+    document.body.appendChild(c); c.style.width = Math.min(px, 256) + 'px';
+    const blob = await new Promise(ok => c.toBlob(ok, 'image/png'));
+    await fetch('/shot?name=' + name, { method: 'POST', body: blob });
+    out.push(name);
+  }
+  return out;
+}
+</script>

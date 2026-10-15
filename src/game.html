@@ -1,4 +1,15 @@
 <meta charset="utf-8">
+<!-- fit the phone's screen instead of a shrunken desktop page; viewport-fit lets the safe-area insets below apply -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1024">
+<!-- "Add to Home Screen" opens it full screen like an app -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="셈셈 점프">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
 <title>셈셈 점프</title>
 <style>
 /* Galmuri11 Bold — Copyright (c) 2019–2025 Lee Minseo (quiple@quiple.dev), SIL Open Font License 1.1, https://github.com/quiple/galmuri */
@@ -12,10 +23,16 @@
   --pixel:"Galmuri11","DungGeunMo",ui-monospace,monospace;
   color-scheme:dark;
 }
-html,body{height:100%}
+html,body{height:100%;margin:0;overscroll-behavior:none;-webkit-text-size-adjust:100%}
+@supports (height:100dvh){html,body{height:100dvh}} /* the visible height, so Safari's toolbar never covers the answer buttons */
 [hidden]{display:none!important}
 body{background:var(--night);color:var(--paper);font-family:var(--pixel);overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:manipulation;-webkit-font-smoothing:none}
-.app{height:100%;box-sizing:border-box;max-width:560px;margin:0 auto;padding-block:14px;padding-inline:16px;display:flex;flex-direction:column;gap:12px}
+.app{height:100%;box-sizing:border-box;max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:12px;
+  /* keep clear of the notch, the home indicator and rounded corners */
+  padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(14px,env(safe-area-inset-bottom));
+  padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+/* tablets held upright get a wider column; landscape and desktop keep the phone-shaped column */
+@media (min-width:700px) and (orientation:portrait){.app{max-width:720px}}
 .px{box-shadow:0 -4px 0 0 var(--paper),0 4px 0 0 var(--paper),-4px 0 0 0 var(--paper),4px 0 0 0 var(--paper)}
 .coin-ico{display:inline-block;width:18px;height:18px;vertical-align:-4px;background-image:var(--tiles);background-position:-198px -126px;background-repeat:no-repeat;image-rendering:pixelated}
 

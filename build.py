@@ -1,9 +1,11 @@
-"""Build dist/semsem-jump.html: one self-contained page with the font, sprites and sounds embedded.
+"""Build dist/semsem-jump.html: one self-contained page with the font, sprites and sounds embedded,
+plus the home-screen icons and web app manifest beside it.
 
     python3 build.py
 """
 import base64
 import json
+import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).parent
@@ -35,6 +37,9 @@ def main() -> None:
     page = page.replace("__ASSETS__", json.dumps(assets))
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(page, encoding="utf-8")
+    # home-screen icons and the web app manifest sit next to the page
+    for name in ("apple-touch-icon.png", "icon-192.png", "icon-512.png", "manifest.webmanifest"):
+        shutil.copyfile(ASSETS / "icons" / name, OUT.parent / name)
     print(f"{OUT.relative_to(ROOT)}  {len(page) / 1e6:.2f} MB")
 
 
