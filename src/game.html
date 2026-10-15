@@ -68,7 +68,7 @@ body{background:var(--night);color:var(--paper);font-family:var(--pixel);overflo
 button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
 
 .overlay{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(11,16,36,.5);overflow:auto}
-#shop,#records,#codeBox,#settings{background:rgba(11,16,36,.9)}
+#shop,#records,#codeBox,#settings,#players,#report{background:rgba(11,16,36,.9)}
 #setup{background:rgba(11,16,36,.6)}
 .dialog{background:var(--navy);padding:18px 16px;max-width:320px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;margin:auto}
 .dialog h1,.dialog h2{margin:0;font-weight:700;line-height:1.05;color:var(--yellow);text-shadow:4px 4px 0 var(--plum)}
@@ -101,6 +101,44 @@ button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
 .codeform input{flex:1;min-width:0;font:inherit;font-size:1rem;padding:8px;background:var(--ink);color:var(--paper);border:0;box-shadow:0 0 0 3px var(--silver);text-transform:uppercase}
 .codeform input:focus{outline:3px dashed var(--yellow);outline-offset:4px}
 .codemsg{min-height:1.4em}
+.player{font:inherit;display:flex;align-items:center;gap:8px;max-width:100%;padding:6px 10px;border:0;cursor:pointer;background:rgba(0,0,0,.35);color:var(--paper);box-shadow:0 0 0 2px var(--silver)}
+.player .face{width:32px;height:32px;flex:none;background-repeat:no-repeat;image-rendering:pixelated}
+.player span{font-weight:700;font-size:.85rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player small{font-size:.65rem;color:var(--gold);white-space:nowrap}
+.plist{width:100%;display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow:auto;padding:4px;box-sizing:border-box}
+.prof{display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(0,0,0,.35)}
+.prof.me{box-shadow:0 0 0 2px var(--yellow)}
+.prof .pick{font:inherit;flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:none;border:0;color:var(--paper);cursor:pointer;text-align:left;padding:0}
+.prof .pick .face{width:32px;height:32px;flex:none;background-repeat:no-repeat;image-rendering:pixelated}
+.prof .pick span{display:flex;flex-direction:column;min-width:0}
+.prof .pick b{font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prof .pick small{font-size:.68rem;color:var(--silver)}
+.prof .edit{font:inherit;font-size:.72rem;color:var(--silver);background:none;border:0;text-decoration:underline;cursor:pointer;padding:4px}
+.nickrow{display:flex;gap:8px;width:100%}
+.nickrow input{flex:1;min-width:0;font:inherit;font-size:1rem;padding:8px;background:var(--ink);color:var(--paper);border:0;box-shadow:0 0 0 3px var(--silver)}
+.nickrow input:focus{outline:3px dashed var(--yellow);outline-offset:4px}
+.nickrow .btn{font-size:.85rem;padding:8px 10px}
+.warn{color:var(--red)!important}
+.tabs{display:flex;gap:10px;width:100%}
+.tabs button{flex:1;font:inherit;font-weight:700;font-size:.85rem;padding:8px 6px;border:0;cursor:pointer;background:var(--ink);color:var(--silver);box-shadow:0 0 0 2px var(--silver)}
+.tabs button[aria-selected="true"]{background:var(--yellow);color:var(--ink);box-shadow:0 0 0 2px var(--paper)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.tile{background:rgba(0,0,0,.35);padding:8px;text-align:left;display:flex;flex-direction:column;gap:2px}
+.tile span{font-size:.68rem;color:var(--silver)}
+.tile b{font-size:1.25rem;color:var(--yellow);font-variant-numeric:tabular-nums}
+.rep{width:100%;display:flex;flex-direction:column;gap:6px;text-align:left}
+.rrow{display:grid;grid-template-columns:1fr auto;gap:3px 8px;padding:7px 8px;background:rgba(0,0,0,.35);font-size:.75rem}
+.rrow .rn{font-weight:700;color:var(--paper);min-width:0;overflow-wrap:anywhere}
+.rrow .rv{color:var(--yellow);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rrow .rs{grid-column:1/-1;color:var(--silver);font-size:.68rem;font-variant-numeric:tabular-nums}
+.rrow .bar{grid-column:1/-1;height:6px;background:#141833}
+.rrow .bar i{display:block;height:100%;background:var(--green)}
+.rrow.weak{box-shadow:0 0 0 2px var(--red)}
+.rrow.weak .rn::after{content:" · 연습 필요";color:var(--red);font-weight:400}
+.days{width:100%;height:56px;display:flex;align-items:flex-end;gap:4px;padding:4px;box-sizing:border-box;background:rgba(0,0,0,.35)}
+.days div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:2px}
+.days i{width:100%;background:var(--green);min-height:2px}
+.days small{font-size:.55rem;color:var(--dim)}
 .title{font-size:clamp(2rem,10.5vw,3.1rem)!important;white-space:nowrap}
 .tagline{color:var(--paper)!important}
 .maker{font-size:.75rem!important;color:var(--paper)!important}
@@ -140,6 +178,7 @@ button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
 @keyframes blink{50%{opacity:.25}}
 .reveal{font-weight:700;font-size:1.5rem;line-height:1.3;color:var(--green);text-shadow:3px 3px 0 var(--ink);font-variant-numeric:tabular-nums}
 .row{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;padding:4px}
+.row.grid2{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box}
 .hint{font-size:.7rem!important}
 .credit{font-size:.62rem!important;opacity:.7}
 .gain{color:var(--gold)!important}
@@ -189,10 +228,12 @@ button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
       <div class="dialog px">
         <h1 class="title">셈셈 점프</h1>
         <p class="tagline">문제를 풀고 정답 계단으로 폴짝!<br>우주까지 폴짝!</p>
+        <button class="player" id="playerBtn" aria-label="플레이어 바꾸기"><i class="face" id="playerFace"></i><span id="playerName"></span><small>바꾸기</small></button>
         <button class="btn blink" id="startBtn">▶ START</button>
-        <div class="row">
+        <div class="row grid2">
           <button class="btn ghost" id="shopBtn">상점</button>
           <button class="btn ghost" id="recBtn">내 기록</button>
+          <button class="btn ghost" id="repBtn">학습 결과</button>
           <button class="btn ghost" id="setBtn">설정</button>
         </div>
         <p class="hint">← → 또는 A D 로 이동 · 1 어림 · 2 멈춤 · Enter</p>
@@ -270,6 +311,48 @@ button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
       </div>
     </div>
 
+    <div class="overlay" id="players" hidden>
+      <div class="dialog px" id="pickBox">
+        <h2>누가 할까요?</h2>
+        <div class="plist" id="plist"></div>
+        <button class="btn ghost" id="addPlayer">+ 새 플레이어</button>
+        <p class="hint">실명 대신 별명을 써 주세요. 기록은 이 기기에만 저장돼요.</p>
+        <button class="btn ghost" id="playersClose">닫기</button>
+      </div>
+      <div class="dialog px" id="nickBox" hidden>
+        <h2 id="nickTitle">새 플레이어</h2>
+        <form class="nickrow" id="nickForm" autocomplete="off">
+          <input id="nickInput" type="text" maxlength="12" aria-label="별명" spellcheck="false">
+          <button class="btn ghost" type="button" id="nickDice" aria-label="다른 별명 추천">추천</button>
+        </form>
+        <p class="hint" id="nickMsg">실명 대신 별명을 써 주세요 (1~12자).</p>
+        <div class="row">
+          <button class="btn" id="nickSave">저장</button>
+          <button class="btn ghost" id="nickCancel">취소</button>
+        </div>
+        <button class="linkbtn" id="nickDelete">이 플레이어 지우기</button>
+        <div class="row" id="delConfirm" hidden>
+          <p class="warn">기록과 코인이 모두 사라져요. 지울까요?</p>
+          <button class="btn" id="delYes">지우기</button>
+          <button class="btn ghost" id="delNo">그만두기</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="report" hidden>
+      <div class="dialog px">
+        <h2>학습 결과</h2>
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tabMe" aria-selected="true">내 결과</button>
+          <button role="tab" id="tabAll" aria-selected="false">이 기기 전체</button>
+        </div>
+        <div id="repMe" class="rep"></div>
+        <div id="repAll" class="rep" hidden></div>
+        <p class="hint">틀리면 그 판이 끝나서, 한 판에 틀린 문제는 1개뿐이에요. 정답률과 함께 시간 초과 수를 같이 보세요.</p>
+        <button class="btn ghost" id="repClose">닫기</button>
+      </div>
+    </div>
+
     <div class="overlay" id="settings" hidden>
       <div class="dialog px">
         <h2>설정</h2>
@@ -314,10 +397,30 @@ const FONT = '12px Galmuri11, monospace';
 document.documentElement.style.setProperty('--tiles', `url(${ASSETS.tiles})`);
 
 // ---------- storage (this browser only) ----------
-const store = {
-  get(k, d) { try { const v = localStorage.getItem('stair-math-' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem('stair-math-' + k, JSON.stringify(v)); } catch (e) {} },
-};
+// device-wide settings (volume, the player list) live under 'stair-math-'; each player's progress under 'stair-math-p:<id>-'
+const keyStore = prefix => ({
+  get(k, d) { try { const v = localStorage.getItem(prefix() + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(prefix() + k, JSON.stringify(v)); } catch (e) {} },
+});
+const gstore = keyStore(() => 'stair-math-');
+const store = keyStore(() => `stair-math-p:${pid}-`);
+const NICK_A = ['용감한', '씩씩한', '반짝이는', '날쌘', '똑똑한', '신나는', '든든한', '재빠른', '명랑한', '튼튼한', '빛나는', '느긋한'];
+const NICK_B = ['초록', '파랑', '분홍', '노랑', '살구', '은하', '별빛', '달빛', '구름', '무지개', '혜성', '로켓'];
+const rnd = a => a[Math.floor(Math.random() * a.length)];
+const randomNick = () => `${rnd(NICK_A)} ${rnd(NICK_B)} ${10 + Math.floor(Math.random() * 90)}`;
+let pid = gstore.get('pid', null), profiles = gstore.get('profiles', null);
+if (!profiles) {
+  // first run with profiles: whatever this browser saved before becomes the first player's progress
+  const first = { id: 'p' + Date.now().toString(36), name: randomNick() };
+  try {
+    for (const k of Object.keys(localStorage)) {
+      const m = k.match(/^stair-math-(?!p:)(.+)$/);
+      if (m && !['vol', 'muted', 'profiles', 'pid'].includes(m[1])) localStorage.setItem(`stair-math-p:${first.id}-${m[1]}`, localStorage.getItem(k));
+    }
+  } catch (e) {}
+  profiles = [first]; gstore.set('profiles', profiles);
+}
+if (!profiles.some(p => p.id === pid)) { pid = profiles[0].id; gstore.set('pid', pid); }
 
 // ---------- sprite sheets (Kenney Pixel Platformer, packed: no spacing) ----------
 const img = src => { const i = new Image(); i.src = src; return i; };
@@ -347,7 +450,7 @@ Promise.all(Object.values(SHEET).map(i => i.decode ? i.decode().catch(() => {}) 
   SKY[0][1] = at(2, 2); SKY[0][2] = at(6 * BS + 2, 2);
   SKY[1][2] = at(2, 2);
   SKY[2][2] = at(4 * BS + 2, 2);
-  ready = true; buildHeroes();
+  ready = true; buildHeroes(); syncPlayer();
 });
 
 // ---------- low-res canvas ----------
@@ -364,13 +467,18 @@ new ResizeObserver(resize).observe(board); resize();
 document.fonts && document.fonts.load(FONT).catch(() => {});
 
 // ---------- saved state ----------
-let vol = store.get('vol', { music: 60, sfx: store.get('muted', false) ? 0 : 100 }), level = store.get('level', '1'), easy = store.get('easy', false);
-let coins = store.get('coins', 0), inv = Object.assign({ pause: 0, lens: 0, magnet: 0, chute: 0, sword: 0 }, store.get('inv', {}));
-let owned = store.get('heroes', [0]), hero = store.get('hero', 0);
-if (!owned.includes(hero)) hero = 0;
+let vol = gstore.get('vol', { music: 60, sfx: gstore.get('muted', false) ? 0 : 100 }), level, easy, coins, inv, owned, hero;
 const equip = { magnet: false, chute: false, sword: false };
 const modeKey = (id = level, e = easy) => 'L' + id + (e ? '-easy' : '');
-let unlocked = store.get('unlocked', 1); // highest level number that is open
+let unlocked; // highest level number that is open
+function loadProfile() {
+  level = store.get('level', '1'); easy = store.get('easy', false); coins = store.get('coins', 0);
+  inv = Object.assign({ pause: 0, lens: 0, magnet: 0, chute: 0, sword: 0 }, store.get('inv', {}));
+  owned = store.get('heroes', [0]); hero = store.get('hero', 0); if (!owned.includes(hero)) hero = 0;
+  unlocked = store.get('unlocked', 1);
+  for (const k of Object.keys(equip)) equip[k] = false;
+}
+loadProfile();
 const loadRec = (id, e) => store.get('rec-' + modeKey(id, e), null) || { top: [], recent: [] };
 const bestNow = () => (loadRec().top[0] || { f: 0 }).f;
 // stars use the better of normal and relaxed play: 10, 20, 30 floors
@@ -687,7 +795,7 @@ function next() {
   S.correct = Math.random() < .5 ? 'L' : 'R';
   S.choice = { L: S.correct === 'L' ? S.q.ans : S.q.wrong, R: S.correct === 'R' ? S.q.ans : S.q.wrong };
   S.coinNext = !boss && Math.random() < (S.run.magnet ? .2 : .1);
-  S.qStart = S.time; S.hint = '';
+  S.qStart = S.time; S.hint = ''; S.qLv = (boss ? S.boss.stage : stageNow()).id;
   showProblem();
 }
 function showProblem() {
@@ -720,9 +828,9 @@ function answer(side) {
   pad.classList.add('hit'); setTimeout(() => pad.classList.remove('hit'), 90);
   const dx = side === 'L' ? -1 : 1, to = { x: S.p.x + dx, y: S.p.y + 1 };
   S.face = dx;
-  if (side !== S.correct) { burst(to.x, to.y, 24, [PAL.brown, PAL.tan, PAL.ink]); return fail('wrong', to); }
-
   const spent = S.time - S.qStart, fast = spent < allowed(S.q) * .3;
+  if (side !== S.correct) { logAnswer(false, 'wrong', spent); burst(to.x, to.y, 24, [PAL.brown, PAL.tan, PAL.ink]); return fail('wrong', to); }
+  logAnswer(true, 'ok', spent);
   S.solved.push({ text: S.q.text.replace('?', S.q.ans), secs: spent });
   S.hop = { from: { ...S.p }, to, t: 0 };
   S.p = to; S.path.push(to);
@@ -817,6 +925,23 @@ function openSetup(step = 1) {
   $('step1').hidden = step !== 1; $('step2').hidden = step !== 2;
   if (step === 1) { buildHeroes(); buildLevels(); syncLevel(); $('nextBtn').focus(); }
   else { buildPrep(); $('goBtn').focus(); }
+}
+
+// ---------- learning log: per level counts, daily totals and recent mistakes, for the report ----------
+const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const today = () => dayKey(new Date());
+const emptyStats = () => ({ lv: {}, days: {}, wrong: [] });
+function logAnswer(ok, how, secs) {
+  const st = store.get('stats', emptyStats()), id = S.qLv;
+  const e = st.lv[id] || (st.lv[id] = { n: 0, ok: 0, to: 0, t: 0 });
+  e.n++;
+  if (ok) { e.ok++; e.t += secs; } else if (how === 'time') e.to++;
+  const d = today(), day = st.days[d] || (st.days[d] = { n: 0, ok: 0 });
+  day.n++; if (ok) day.ok++;
+  const days = Object.keys(st.days).sort();
+  while (days.length > 30) delete st.days[days.shift()];
+  if (!ok) st.wrong = [{ q: S.q.text.replace('?', S.q.ans), lv: id, how, d }, ...st.wrong].slice(0, 20);
+  store.set('stats', st);
 }
 
 // ---------- in-run items ----------
@@ -1021,7 +1146,7 @@ function update(dt) {
     if (S.freeze > 0) S.freeze -= dt;
     else S.gauge -= BONUS / allowed(S.q) * dt;
     if (S.gauge < .25 && S.freeze <= 0 && (S.tick -= dt) <= 0) { play('tick', 1, .5); S.tick = .45; }
-    if (S.gauge <= 0) { S.gauge = 0; fail('time', null); }
+    if (S.gauge <= 0) { S.gauge = 0; logAnswer(false, 'time', S.time - S.qStart); fail('time', null); }
   }
   if (S.hop && (S.hop.t += dt / .12) >= 1) S.hop = null;
   if (S.fall) {
@@ -1068,7 +1193,7 @@ function buildHeroes() {
     b.addEventListener('click', () => {
       initAudio();
       if (!owned.includes(i)) return openShop();
-      hero = i; store.set('hero', i); play('toggle', 1, .5); buildHeroes();
+      hero = i; store.set('hero', i); play('toggle', 1, .5); buildHeroes(); syncPlayer();
     });
     wrap.appendChild(b);
   });
@@ -1194,6 +1319,134 @@ function buildShop() {
 }
 
 // ---------- my records ----------
+// ---------- players on this device ----------
+const BAD_WORDS = ['씨발', '시발', '병신', '개새', '좆', '존나', '지랄', '새끼', 'fuck', 'shit'];
+const profileKeys = id => { try { return Object.keys(localStorage).filter(k => k.startsWith(`stair-math-p:${id}-`)); } catch (e) { return []; } };
+const peek = (id, k, d) => { try { const v = localStorage.getItem(`stair-math-p:${id}-${k}`); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+function syncPlayer() {
+  const me = profiles.find(p => p.id === pid);
+  $('playerName').textContent = me ? me.name : '';
+  if (ready) heroFace($('playerFace'), HEROES[hero].f[0], 4 / 3);
+}
+function switchPlayer(id) {
+  pid = id; gstore.set('pid', pid); loadProfile();
+  syncPlayer(); buildHeroes(); hud(); play('toggle', 1, .5);
+}
+function openPlayers() {
+  initAudio();
+  $('pickBox').hidden = false; $('nickBox').hidden = true;
+  const list = $('plist'); list.innerHTML = '';
+  for (const p of profiles) {
+    const row = document.createElement('div'); row.className = 'prof' + (p.id === pid ? ' me' : '');
+    row.innerHTML = '<button class="pick"><i class="face"></i><span><b></b><small></small></span></button><button class="edit">고치기</button>';
+    const h = HEROES[peek(p.id, 'hero', 0)] || HEROES[0];
+    if (ready) heroFace(row.querySelector('.face'), h.f[0], 4 / 3);
+    row.querySelector('b').textContent = p.name;
+    row.querySelector('small').textContent = `Lv.${peek(p.id, 'unlocked', 1)}까지 열림 · 코인 ${peek(p.id, 'coins', 0)}`;
+    row.querySelector('.pick').setAttribute('aria-label', `${p.name}(으)로 하기`);
+    row.querySelector('.pick').addEventListener('click', () => { switchPlayer(p.id); $('players').hidden = true; });
+    row.querySelector('.edit').setAttribute('aria-label', `${p.name} 이름 고치기`);
+    row.querySelector('.edit').addEventListener('click', () => openNick(p));
+    list.appendChild(row);
+  }
+  $('addPlayer').disabled = profiles.length >= 40;
+  $('players').hidden = false;
+}
+let editing = null; // the profile being renamed, or null for a new one
+function openNick(p) {
+  editing = p || null;
+  $('pickBox').hidden = true; $('nickBox').hidden = false; $('delConfirm').hidden = true;
+  $('nickTitle').textContent = p ? '이름 고치기' : '새 플레이어';
+  $('nickInput').value = p ? p.name : randomNick();
+  $('nickMsg').textContent = '실명 대신 별명을 써 주세요 (1~12자).'; $('nickMsg').classList.remove('warn');
+  $('nickDelete').hidden = !p || profiles.length < 2;
+  $('nickInput').focus(); $('nickInput').select();
+}
+function saveNick() {
+  const name = $('nickInput').value.trim().replace(/\s+/g, ' ');
+  const msg = !name ? '별명을 적어 주세요.' : name.length > 12 ? '12자까지 쓸 수 있어요.'
+    : BAD_WORDS.some(w => name.toLowerCase().includes(w)) ? '다른 별명을 써 주세요.'
+    : profiles.some(p => p.name === name && p !== editing) ? '같은 별명이 이미 있어요.' : '';
+  if (msg) { $('nickMsg').textContent = msg; $('nickMsg').classList.add('warn'); play('nope', 1, .5); return; }
+  if (editing) editing.name = name;
+  else { const p = { id: 'p' + Date.now().toString(36) + Math.floor(Math.random() * 1e4), name }; profiles.push(p); gstore.set('profiles', profiles); switchPlayer(p.id); }
+  gstore.set('profiles', profiles); syncPlayer(); play('buy', 1, .6); openPlayers();
+}
+function deletePlayer() {
+  if (!editing || profiles.length < 2) return;
+  try { for (const k of profileKeys(editing.id)) localStorage.removeItem(k); } catch (e) {}
+  profiles = profiles.filter(p => p !== editing); gstore.set('profiles', profiles);
+  if (editing.id === pid) switchPlayer(profiles[0].id);
+  editing = null; openPlayers();
+}
+
+// ---------- learning report ----------
+const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+const lvName = id => { const l = LEVELS.find(x => x.id === id); return l ? `Lv.${l.n} ${l.short}` : id; };
+function tileEl(label, value) { const t = document.createElement('div'); t.className = 'tile'; t.innerHTML = '<span></span><b></b>'; t.children[0].textContent = label; t.children[1].textContent = value; return t; }
+function rowEl(name, value, sub, ratio, weak) {
+  const r = document.createElement('div'); r.className = 'rrow' + (weak ? ' weak' : '');
+  r.innerHTML = '<span class="rn"></span><span class="rv"></span>' + (ratio != null ? '<span class="bar"><i></i></span>' : '') + '<span class="rs"></span>';
+  r.querySelector('.rn').textContent = name; r.querySelector('.rv').textContent = value; r.querySelector('.rs').textContent = sub;
+  if (ratio != null) r.querySelector('.bar i').style.width = Math.round(ratio * 100) + '%';
+  return r;
+}
+const heading = text => { const l = document.createElement('div'); l.className = 'label'; l.textContent = text; return l; };
+// the level that most needs practice: lowest accuracy among levels with at least 10 problems
+const weakest = st => Object.entries(st.lv).filter(([, e]) => e.n >= 10).sort((a, b) => a[1].ok / a[1].n - b[1].ok / b[1].n)[0];
+function buildReportMe() {
+  const st = store.get('stats', emptyStats()), me = profiles.find(p => p.id === pid), box = $('repMe');
+  box.innerHTML = '';
+  const tot = Object.values(st.lv).reduce((a, e) => ({ n: a.n + e.n, ok: a.ok + e.ok }), { n: 0, ok: 0 }), td = st.days[today()] || { n: 0, ok: 0 };
+  box.appendChild(heading(me ? me.name : ''));
+  const tiles = document.createElement('div'); tiles.className = 'tiles';
+  tiles.append(tileEl('오늘 푼 문제', td.n), tileEl('오늘 정답률', td.n ? pct(td.ok, td.n) + '%' : '-'), tileEl('전체 푼 문제', tot.n), tileEl('전체 정답률', tot.n ? pct(tot.ok, tot.n) + '%' : '-'));
+  box.appendChild(tiles);
+  if (!tot.n) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = '아직 푼 문제가 없어요. 한 판 올라가 보세요!'; box.appendChild(p); return; }
+  // last seven days
+  box.appendChild(heading('최근 7일'));
+  const days = document.createElement('div'); days.className = 'days';
+  const last7 = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 6 + i); return d; });
+  const solvedOn = d => (st.days[dayKey(d)] || { n: 0 }).n, max = Math.max(1, ...last7.map(solvedOn));
+  for (const d of last7) {
+    const key = dayKey(d), n = solvedOn(d);
+    const c = document.createElement('div'); c.title = `${key} ${n}문제`;
+    c.innerHTML = `<i style="height:${Math.max(2, n / max * 100)}%"></i><small>${d.getMonth() + 1}/${d.getDate()}</small>`;
+    days.appendChild(c);
+  }
+  box.appendChild(days);
+  // per level
+  box.appendChild(heading('레벨별'));
+  const weak = weakest(st);
+  for (const l of LEVELS) {
+    const e = st.lv[l.id]; if (!e) continue;
+    box.appendChild(rowEl(`Lv.${l.n} ${l.short}`, `${pct(e.ok, e.n)}%`,
+      `${e.n}문제 · 정답 ${e.ok} · 시간 초과 ${e.to}` + (e.ok ? ` · 평균 ${(e.t / e.ok).toFixed(1)}초` : ''), e.ok / e.n, weak && weak[0] === l.id));
+  }
+  if (st.wrong.length) {
+    box.appendChild(heading('최근 틀린 문제'));
+    for (const w of st.wrong.slice(0, 10)) box.appendChild(rowEl(w.q, w.how === 'time' ? '시간 초과' : '오답', `${lvName(w.lv)} · ${w.d}`));
+  }
+}
+function buildReportAll() {
+  const box = $('repAll'); box.innerHTML = '';
+  box.appendChild(heading(`이 기기의 플레이어 ${profiles.length}명`));
+  for (const p of profiles) {
+    const st = peek(p.id, 'stats', emptyStats()), tot = Object.values(st.lv).reduce((a, e) => ({ n: a.n + e.n, ok: a.ok + e.ok }), { n: 0, ok: 0 });
+    const w = weakest(st), td = st.days[today()] || { n: 0 };
+    box.appendChild(rowEl(p.name, tot.n ? `${pct(tot.ok, tot.n)}%` : '-',
+      `${tot.n}문제 (오늘 ${td.n}) · Lv.${peek(p.id, 'unlocked', 1)}까지 열림` + (w ? ` · 연습 필요: ${lvName(w[0])}` : ''), tot.n ? tot.ok / tot.n : null));
+  }
+}
+function openReport(tab = 'me') {
+  initAudio();
+  const me = tab === 'me';
+  $('tabMe').setAttribute('aria-selected', String(me)); $('tabAll').setAttribute('aria-selected', String(!me));
+  $('repMe').hidden = !me; $('repAll').hidden = me;
+  me ? buildReportMe() : buildReportAll();
+  $('report').hidden = false;
+}
+
 function openRecords() {
   const rec = loadRec(), l = level === 'climb' ? CLIMB : LEVELS.find(x => x.id === level);
   $('recMode').textContent = `${level === 'climb' ? '도전 모드' : `Lv.${l.n} ${l.short}`}${easy ? ' · 여유 모드' : ''}`;
@@ -1228,6 +1481,20 @@ $('menuBtn').addEventListener('click', () => toMenu());
 $('shopBtn').addEventListener('click', () => { initAudio(); openShop(); });
 $('shopClose').addEventListener('click', () => { $('shop').hidden = true; });
 $('recBtn').addEventListener('click', () => { initAudio(); openRecords(); });
+$('repBtn').addEventListener('click', () => openReport('me'));
+$('tabMe').addEventListener('click', () => openReport('me'));
+$('tabAll').addEventListener('click', () => openReport('all'));
+$('repClose').addEventListener('click', () => { $('report').hidden = true; });
+$('playerBtn').addEventListener('click', openPlayers);
+$('playersClose').addEventListener('click', () => { $('players').hidden = true; });
+$('addPlayer').addEventListener('click', () => openNick(null));
+$('nickDice').addEventListener('click', () => { $('nickInput').value = randomNick(); play('toggle', 1, .5); });
+$('nickForm').addEventListener('submit', e => { e.preventDefault(); saveNick(); });
+$('nickSave').addEventListener('click', saveNick);
+$('nickCancel').addEventListener('click', openPlayers);
+$('nickDelete').addEventListener('click', () => { $('delConfirm').hidden = false; });
+$('delNo').addEventListener('click', () => { $('delConfirm').hidden = true; });
+$('delYes').addEventListener('click', deletePlayer);
 $('recClose').addEventListener('click', () => { $('records').hidden = true; });
 $('easyBtn').addEventListener('click', () => { easy = !easy; store.set('easy', easy); initAudio(); play('toggle', 1, .5); syncLevel(); });
 function openSettings() {
@@ -1240,12 +1507,12 @@ function syncMute() { $('musicVolN').textContent = vol.music + '%'; $('sfxVolN')
 $('gearBtn').addEventListener('click', openSettings);
 $('setBtn').addEventListener('click', openSettings);
 $('setClose').addEventListener('click', () => { $('settings').hidden = true; });
-$('musicVol').addEventListener('input', e => { vol.music = +e.target.value; store.set('vol', vol); applyVolume(); syncMute(); });
-$('sfxVol').addEventListener('input', e => { vol.sfx = +e.target.value; store.set('vol', vol); applyVolume(); syncMute(); });
+$('musicVol').addEventListener('input', e => { vol.music = +e.target.value; gstore.set('vol', vol); applyVolume(); syncMute(); });
+$('sfxVol').addEventListener('input', e => { vol.sfx = +e.target.value; gstore.set('vol', vol); applyVolume(); syncMute(); });
 $('sfxVol').addEventListener('change', () => play('coin', 1, .55)); // a sample of the new level
 // the first tap anywhere unlocks audio, so the title music can start
 addEventListener('pointerdown', () => initAudio(), { once: true });
-syncMute(); buildLevels(); syncLevel(); syncEquip();
+syncMute(); buildLevels(); syncLevel(); syncEquip(); syncPlayer();
 // teacher code: only an FNV-1a hash of the normalized code lives in the page
 const CODE_HASH = 2063219803; // "ppang"
 const fnv = str => { let h = 0x811c9dc5; for (const ch of str) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h; };
@@ -1265,8 +1532,8 @@ addEventListener('keydown', e => {
   else if (e.key === 'ArrowRight' || e.code === 'KeyD') { e.preventDefault(); answer('R'); }
   else if (e.key === '1' && S.mode === 'play') useItem('lens');
   else if (e.key === '2' && S.mode === 'play') useItem('pause');
-  else if (e.key === 'Escape') { $('shop').hidden = true; $('records').hidden = true; $('codeBox').hidden = true; $('settings').hidden = true; }
-  else if (e.key === 'Enter' && $('shop').hidden && $('records').hidden && $('codeBox').hidden && $('settings').hidden) {
+  else if (e.key === 'Escape') { for (const id of ['shop', 'records', 'codeBox', 'settings', 'players', 'report']) $(id).hidden = true; }
+  else if (e.key === 'Enter' && ['shop', 'records', 'codeBox', 'settings', 'players', 'report'].every(id => $(id).hidden)) {
     // Enter walks forward: title → step 1 → step 2 → start; after a fall it climbs again
     if (document.activeElement && document.activeElement.tagName === 'BUTTON' && document.activeElement !== document.body) return;
     e.preventDefault();
