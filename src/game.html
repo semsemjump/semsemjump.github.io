@@ -233,9 +233,38 @@ button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
 .shoplist{width:100%;display:flex;flex-direction:column;gap:8px}
 .wallet{color:var(--gold)!important;font-size:1rem!important}
 @media (prefers-reduced-motion:reduce){.blink{animation:none}}
+/* outside a run the answer buttons only show "?", so menus get their room */
+.app.nopads .pads{display:none}
+/* short screens (an iPhone with Safari's bars, small phones): tighter menus; anything still too tall scrolls inside the board */
+@media (max-height:760px){
+  .dialog{padding:12px;gap:8px}
+  .dialog h1.title{font-size:clamp(1.9rem,9vw,2.5rem)!important}
+  .dialog h2{font-size:1.35rem}
+  .dialog p{line-height:1.5}
+  .btn{padding:8px 16px;font-size:1.05rem}
+  .btn.ghost{padding:6px 10px;font-size:.88rem}
+  .row{gap:12px}
+  .player{padding:4px 8px}
+  .player .face{width:28px;height:28px}
+  .levels{gap:8px}
+  .lv{min-height:38px}
+  .lvinfo{padding:6px 8px}
+  .dialog .desc{min-height:0}
+  .prow,.srow{padding:6px 8px}
+  .reveal{font-size:1.3rem}
+  .list .li{padding:5px 8px}
+  .tile b{font-size:1.05rem}
+}
+@media (max-height:600px){
+  .dialog{padding:10px;gap:6px}
+  .dialog h1.title{font-size:1.8rem!important}
+  .btn{padding:6px 12px;font-size:.95rem}
+  .chip{min-height:32px}
+  .lv{min-height:34px}
+}
 </style>
 
-<div class="app">
+<div class="app nopads">
   <div class="hud">
     <div class="floor"><b id="score">0</b>층</div>
     <div class="gauge" id="gauge" role="progressbar" aria-label="남은 시간"><i id="gaugeFill"></i></div>
@@ -909,7 +938,7 @@ function start() {
   for (const k of Object.keys(equip)) if (equip[k] && inv[k] > 0) { inv[k]--; S.run[k] = true; S.itemUsed = true; }
   for (const k of Object.keys(equip)) if (inv[k] <= 0) equip[k] = false;
   store.set('inv', inv);
-  S.mode = 'play';
+  S.mode = 'play'; syncPads();
   for (const id of ['menu', 'setup', 'over', 'shop', 'records', 'codeBox']) $(id).hidden = true;
   $('banner').hidden = false; $('itemBar').hidden = false;
   play('start'); next(); hud(); setTrack('main');
@@ -1004,7 +1033,7 @@ function revive() {
   play('item'); showProblem(); setTrack(S.boss && S.boss.hp > 0 ? 'boss' : 'main');
 }
 function showOver() {
-  S.mode = 'over'; $('itemBar').hidden = true;
+  S.mode = 'over'; $('itemBar').hidden = true; syncPads();
   // records for this level (and relaxed mode separately): best ten plus the last twenty runs
   const rec = loadRec(), prevBest = (rec.top[0] || { f: 0 }).f;
   const entry = { f: S.score, d: new Date().toISOString().slice(0, 10), i: S.itemUsed };
@@ -1038,8 +1067,9 @@ function showOver() {
   }
   $('over').hidden = false; $('retryBtn').focus();
 }
+const syncPads = () => document.querySelector('.app').classList.toggle('nopads', S.mode === 'menu' || S.mode === 'over');
 function toMenu(screen = 'menu') {
-  S.mode = 'menu'; reset();
+  S.mode = 'menu'; reset(); syncPads();
   for (const id of ['over', 'shop', 'records', 'setup', 'menu']) $(id).hidden = true;
   $(screen).hidden = false; $('banner').hidden = true; $('itemBar').hidden = true;
   $('padLn').textContent = '?'; $('padRn').textContent = '?';
