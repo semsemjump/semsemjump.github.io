@@ -607,8 +607,12 @@ const decode = uri => {
 function initAudio() {
   if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
   try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
-  sfxBus = actx.createGain(); sfxBus.connect(actx.destination);
-  musicBus = actx.createGain(); musicBus.connect(actx.destination);
+  // both buses meet in a limiter so stacked sounds never clip
+  const master = actx.createDynamicsCompressor();
+  master.threshold.value = -3; master.knee.value = 0; master.ratio.value = 20; master.attack.value = .003; master.release.value = .15;
+  master.connect(actx.destination);
+  sfxBus = actx.createGain(); sfxBus.connect(master);
+  musicBus = actx.createGain(); musicBus.connect(master);
   applyVolume();
   for (const name of SOUNDS) decode(ASSETS['snd_' + name]).then(b => { BUF[name] = b; }).catch(() => {});
   for (const name of Object.keys(TRACKS)) decode(ASSETS['mus_' + name]).then(b => { MUSIC[name] = b; if (music.want === name) setTrack(name, true); }).catch(() => {});
@@ -618,9 +622,16 @@ function initAudio() {
 const applyVolume = () => {
   if (!actx) return;
   sfxBus.gain.value = (vol.sfx / 100) ** 2;
-  musicBus.gain.value = (vol.music / 100) ** 2 * .7;
+  musicBus.gain.value = (vol.music / 100) ** 2 * MUSIC_LEVEL;
 };
-function play(name, rate = 1, v = .6) {
+// Mix levels, measured with promo/loudness.swift. The title and boss themes are about 3.7 dB louder than the main
+// theme at the source, so they are trimmed to match it. Effects peak around −8…−9 dBFS at full effect volume, the
+// fall sound no longer jumps out, and the end-of-run jingles sit a little above the effects.
+const MUSIC_LEVEL = 1.2;
+const TRACK_GAIN = { title: .65, main: 1, boss: .65 };
+const SFX_VOL = { step: .4, coin: .4, hit: .4, bossin: .4, bossdown: .55, wrong: .45, start: .45, gameover: .7, record: .7,
+  buy: .5, item: .45, toggle: .55, nope: .5, tick: .7, milestone: .5 };
+function play(name, rate = 1, v = SFX_VOL[name] ?? .5) {
   if (!vol.sfx || !actx || !BUF[name]) return;
   try {
     const s = actx.createBufferSource(), g = actx.createGain();
@@ -650,14 +661,14 @@ function setTrack(name, force) {
   const real = TRACKS[name] / 44100, trimmed = Math.abs(buf.duration - real) < .02, lead = trimmed ? 0 : 2112 / 44100;
   const src = actx.createBufferSource(), gain = actx.createGain(), t = actx.currentTime;
   src.buffer = buf; src.loop = true; src.loopStart = lead; src.loopEnd = lead + real;
-  gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(1, t + .3);
+  gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(TRACK_GAIN[name] ?? 1, t + .3);
   src.connect(gain).connect(musicBus); src.start(t, lead);
   music.src = src; music.gain = gain;
 }
 const STEP_RATES = [1, 1.12, 1.26, 1.33, 1.5, 1.68];
 const sfx = {
-  step: n => play('step', STEP_RATES[n % STEP_RATES.length], .45),
-  end: isRecord => play(isRecord ? 'record' : 'gameover', 1, .55),
+  step: n => play('step', STEP_RATES[n % STEP_RATES.length]),
+  end: isRecord => play(isRecord ? 'record' : 'gameover'),
 };
 
 // ---------- problems: 2022 개정 교육과정 '수와 연산' sequence, natural numbers only ----------
@@ -884,7 +895,7 @@ function start() {
   S.mode = 'play';
   for (const id of ['menu', 'setup', 'over', 'shop', 'records', 'codeBox']) $(id).hidden = true;
   $('banner').hidden = false; $('itemBar').hidden = false;
-  play('start', 1, .6); next(); hud(); setTrack('main');
+  play('start'); next(); hud(); setTrack('main');
 }
 function next() {
   const boss = S.boss && S.boss.hp > 0;
@@ -915,7 +926,7 @@ function setProb(t) {
 function hud() { $('score').textContent = S.score; $('coins').textContent = coins; }
 function gainCoins(n, x, y, label) {
   coins += n; S.runCoins += n; store.set('coins', coins); hud();
-  play('coin', 1, .55);
+  play('coin');
   S.pops.push({ x, y, text: label || `+${n}`, life: 1.2, coin: true });
 }
 
@@ -941,9 +952,9 @@ function answer(side) {
   else if (fast && !S.boss && Math.random() < .08) gainCoins(1, to.x, to.y + 2.2, '+1 빠르다!');
 
   if (S.boss && S.boss.hp > 0) {
-    S.boss.hp--; S.boss.hit = .3; play('hit', 1, .55);
+    S.boss.hp--; S.boss.hit = .3; play('hit');
     if (S.boss.hp <= 0) {
-      S.boss.dead = 0.001; play('bossdown', 1, .6); setTrack('main');
+      S.boss.dead = 0.001; play('bossdown'); setTrack('main');
       const loot = R(3, 5);
       setTimeout(() => gainCoins(loot, S.p.x, S.p.y + 2.2, `보물 +${loot}`), 350);
       burst(to.x, to.y, 18, [PAL.yellow, PAL.gold, PAL.paper]);
@@ -951,7 +962,7 @@ function answer(side) {
   } else if (S.score % 10 === 0) {
     // every tenth floor: a flag, then a boss guards the next stretch
     S.boss = { hp: S.run.sword ? BOSS_HP - 1 : BOSS_HP, max: BOSS_HP, kind: BOSSES[S.bossNo++ % BOSSES.length], stage: stageAt(S.score - 1), t: 0, hit: 0, dead: 0 };
-    play('bossin', 1, .6); setTrack('boss');
+    play('bossin'); setTrack('boss');
     S.pops.push({ x: to.x, y: to.y + 2.2, text: 'BOSS!', life: 1.2 });
     burst(to.x, to.y, 16, [PAL.yellow, PAL.paper, PAL.red]);
   } else sfx.step(S.score);
@@ -960,7 +971,7 @@ function answer(side) {
 function fail(reason, to) {
   S.mode = 'fall'; S.reason = reason; S.shake = reduceMotion ? 0 : .3;
   S.fall = { x: S.p.x, y: S.p.y, vx: to ? (to.x - S.p.x) * 2.2 : 0, vy: to ? 6 : 1.5, t: 0 };
-  play('wrong', 1, .7); syncItems(); setTrack(null);
+  play('wrong'); syncItems(); setTrack(null);
   // with a parachute the answer stays hidden, because the same problem comes back
   S.reviving = S.run.chute && !S.reviveUsed;
   if (!S.reviving) { setProb(S.q.text.replace('?', S.q.ans)); $('hintLine').hidden = true; }
@@ -973,7 +984,7 @@ function revive() {
   S.choice = { L: S.correct === 'L' ? S.q.ans : S.q.wrong, R: S.correct === 'R' ? S.q.ans : S.q.wrong };
   S.qStart = S.time; S.hint = '낙하산! 같은 문제를 다시 풀어요';
   S.pops.push({ x: S.p.x, y: S.p.y + 2.2, text: '낙하산!', life: 1.2 });
-  play('item', 1, .6); showProblem(); setTrack(S.boss && S.boss.hp > 0 ? 'boss' : 'main');
+  play('item'); showProblem(); setTrack(S.boss && S.boss.hp > 0 ? 'boss' : 'main');
 }
 function showOver() {
   S.mode = 'over'; $('itemBar').hidden = true;
@@ -1051,11 +1062,11 @@ function syncItems() {
   }
 }
 function useItem(k) {
-  if (S.mode !== 'play' || inv[k] <= 0 || S.used[k] >= LIMIT[k]) return play('nope', 1, .5);
+  if (S.mode !== 'play' || inv[k] <= 0 || S.used[k] >= LIMIT[k]) return play('nope');
   if (k === 'lens') { if (S.hint.startsWith('어림')) return; S.hint = '어림: ' + estimate(S.q.ans); }
   if (k === 'pause') S.freeze = 5;
   inv[k]--; S.used[k]++; S.itemUsed = true; store.set('inv', inv);
-  play('item', 1, .6); showProblem();
+  play('item'); showProblem();
 }
 
 // ---------- effects ----------
@@ -1243,7 +1254,7 @@ function update(dt) {
   if (S.mode === 'play') {
     if (S.freeze > 0) S.freeze -= dt;
     else S.gauge -= BONUS / allowed(S.q) * dt;
-    if (S.gauge < .25 && S.freeze <= 0 && (S.tick -= dt) <= 0) { play('tick', 1, .5); S.tick = .45; }
+    if (S.gauge < .25 && S.freeze <= 0 && (S.tick -= dt) <= 0) { play('tick'); S.tick = .45; }
     if (S.gauge <= 0) { S.gauge = 0; logAnswer(false, 'time', S.time - S.qStart); fail('time', null); }
   }
   if (S.hop && (S.hop.t += dt / .12) >= 1) S.hop = null;
@@ -1291,7 +1302,7 @@ function buildHeroes() {
     b.addEventListener('click', () => {
       initAudio();
       if (!owned.includes(i)) return openShop();
-      hero = i; store.set('hero', i); play('toggle', 1, .5); buildHeroes(); syncPlayer();
+      hero = i; store.set('hero', i); play('toggle'); buildHeroes(); syncPlayer();
     });
     wrap.appendChild(b);
   });
@@ -1305,7 +1316,7 @@ function buildLevels() {
     b.children[0].textContent = climb ? '★ 도전' : l.n;
     b.children[1].textContent = climb ? `BEST ${bestAny('climb')}층` : open ? '★'.repeat(n) + '☆'.repeat(3 - n) : '잠김';
     b.setAttribute('aria-label', climb ? '도전 모드' : `레벨 ${l.n} ${l.name}${open ? `, 별 ${n}개` : ', 잠김'}`);
-    b.addEventListener('click', () => { level = l.id; store.set('level', level); initAudio(); play('toggle', 1, .5); syncLevel(); });
+    b.addEventListener('click', () => { level = l.id; store.set('level', level); initAudio(); play('toggle'); syncLevel(); });
     wrap.appendChild(b);
   }
 }
@@ -1354,8 +1365,8 @@ const ITEMS = {
   sword: { name: '보스 칼', desc: '시작할 때 가져가요. 그 판의 보스 체력이 1칸 줄어요.', price: 12 },
 };
 function purchase(price, onBuy) {
-  if (coins < price) return play('nope', 1, .5);
-  coins -= price; store.set('coins', coins); onBuy(); play('buy', 1, .6); hud();
+  if (coins < price) return play('nope');
+  coins -= price; store.set('coins', coins); onBuy(); play('buy'); hud();
 }
 const syncEquip = () => { for (const k of Object.keys(equip)) if (inv[k] <= 0) equip[k] = false; };
 function buildPrep() {
@@ -1377,7 +1388,7 @@ function buildPrep() {
       const t = document.createElement('button'); t.className = 'take'; t.id = 'take-' + k;
       t.textContent = equip[k] ? '가져가요' : '가져가기'; t.disabled = inv[k] <= 0;
       t.setAttribute('aria-pressed', String(equip[k])); t.setAttribute('aria-label', `${it.name} 가져가기`);
-      t.addEventListener('click', () => { equip[k] = !equip[k]; initAudio(); play('toggle', 1, .5); buildPrep(); });
+      t.addEventListener('click', () => { equip[k] = !equip[k]; initAudio(); play('toggle'); buildPrep(); });
       ctl.appendChild(t);
     }
     const b = document.createElement('button'); b.className = 'buy'; b.id = 'buy-' + k;
@@ -1428,7 +1439,7 @@ function syncPlayer() {
 }
 function switchPlayer(id) {
   pid = id; gstore.set('pid', pid); loadProfile();
-  syncPlayer(); buildHeroes(); hud(); play('toggle', 1, .5);
+  syncPlayer(); buildHeroes(); hud(); play('toggle');
 }
 function openPlayers() {
   initAudio();
@@ -1465,10 +1476,10 @@ function saveNick() {
   const msg = !name ? '별명을 적어 주세요.' : name.length > 12 ? '12자까지 쓸 수 있어요.'
     : BAD_WORDS.some(w => name.toLowerCase().includes(w)) ? '다른 별명을 써 주세요.'
     : profiles.some(p => p.name === name && p !== editing) ? '같은 별명이 이미 있어요.' : '';
-  if (msg) { $('nickMsg').textContent = msg; $('nickMsg').classList.add('warn'); play('nope', 1, .5); return; }
+  if (msg) { $('nickMsg').textContent = msg; $('nickMsg').classList.add('warn'); play('nope'); return; }
   if (editing) editing.name = name;
   else { const p = { id: 'p' + Date.now().toString(36) + Math.floor(Math.random() * 1e4), name }; profiles.push(p); gstore.set('profiles', profiles); switchPlayer(p.id); }
-  gstore.set('profiles', profiles); syncPlayer(); play('buy', 1, .6); openPlayers();
+  gstore.set('profiles', profiles); syncPlayer(); play('buy'); openPlayers();
 }
 function deletePlayer() {
   if (!editing || profiles.length < 2) return;
@@ -1511,16 +1522,16 @@ function openClasses() {
 }
 async function joinClass() {
   const code = cleanCode($('joinInput').value);
-  if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) { $('joinMsg').textContent = '코드는 영어와 숫자 6자리예요.'; return play('nope', 1, .5); }
+  if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) { $('joinMsg').textContent = '코드는 영어와 숫자 6자리예요.'; return play('nope'); }
   $('joinMsg').textContent = '확인하는 중…';
   try {
     const [c] = await rpc('class_info', { p_code: code });
-    if (!c) { $('joinMsg').textContent = '그런 학급이 없어요. 코드를 다시 확인해 주세요.'; return play('nope', 1, .5); }
+    if (!c) { $('joinMsg').textContent = '그런 학급이 없어요. 코드를 다시 확인해 주세요.'; return play('nope'); }
     // show which class this code belongs to before joining, so a mistyped code cannot land in someone else's class
     pendingClass = { code: c.code, label: c.label, allowItems: c.allow_items };
     $('joinAsk').textContent = c.label ? `'${c.label}' (${c.code})에 참여할까요?` : `학급 코드 ${c.code}에 참여할까요? (학급 이름 없음)`;
     $('joinForm').hidden = true; $('joinConfirm').hidden = false; $('joinMsg').textContent = '';
-    play('toggle', 1, .5); $('joinYes').focus();
+    play('toggle'); $('joinYes').focus();
   } catch (e) { $('joinMsg').textContent = NET_MSG; }
 }
 let pendingClass = null;
@@ -1575,13 +1586,13 @@ function submitToClass() {
 }
 async function createClass() {
   const label = $('newLabel').value.trim(), pin = $('newPin').value.trim();
-  if (!/^\d{4,8}$/.test(pin)) { $('createMsg').textContent = '비밀번호는 숫자 4~8자리예요.'; return play('nope', 1, .5); }
+  if (!/^\d{4,8}$/.test(pin)) { $('createMsg').textContent = '비밀번호는 숫자 4~8자리예요.'; return play('nope'); }
   $('createMsg').textContent = '만드는 중…';
   try {
     const code = await rpc('create_class', { p_label: label, p_pin: pin });
     store.set('class', { code, label, allowItems: true });
     $('madeCode').textContent = code; $('newPin').value = '';
-    play('record', 1, .55); classPane('clMade');
+    play('record'); classPane('clMade');
   } catch (e) { $('createMsg').textContent = (e.info && e.info.hint) || NET_MSG; }
 }
 let tPin = ''; // kept only in memory while the teacher panel is open
@@ -1708,9 +1719,9 @@ tap($('padL'), () => answer('L'));
 tap($('padR'), () => answer('R'));
 $('useLens').addEventListener('click', () => { initAudio(); useItem('lens'); });
 $('usePause').addEventListener('click', () => { initAudio(); useItem('pause'); });
-$('startBtn').addEventListener('click', () => { initAudio(); play('toggle', 1, .5); openSetup(1); });
-$('nextBtn').addEventListener('click', () => { if (isOpen(level)) { play('toggle', 1, .5); openSetup(2); } });
-$('backBtn').addEventListener('click', () => { play('toggle', 1, .5); openSetup(1); });
+$('startBtn').addEventListener('click', () => { initAudio(); play('toggle'); openSetup(1); });
+$('nextBtn').addEventListener('click', () => { if (isOpen(level)) { play('toggle'); openSetup(2); } });
+$('backBtn').addEventListener('click', () => { play('toggle'); openSetup(1); });
 $('toTitle').addEventListener('click', () => toMenu());
 $('goBtn').addEventListener('click', start);
 $('retryBtn').addEventListener('click', start);
@@ -1726,7 +1737,7 @@ $('repClose').addEventListener('click', () => { $('report').hidden = true; });
 $('classBtn').addEventListener('click', openClasses);
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { $(b.dataset.close).hidden = true; }));
 $('joinForm').addEventListener('submit', e => { e.preventDefault(); joinClass(); });
-$('joinYes').addEventListener('click', () => { if (!pendingClass) return; store.set('class', pendingClass); pendingClass = null; play('buy', 1, .6); openBoard(); });
+$('joinYes').addEventListener('click', () => { if (!pendingClass) return; store.set('class', pendingClass); pendingClass = null; play('buy'); openBoard(); });
 $('joinNo').addEventListener('click', () => resetJoin('코드를 다시 확인해 주세요.'));
 $('toCreate').addEventListener('click', () => { $('createMsg').textContent = ''; $('newLabel').value = ''; $('newPin').value = ''; classPane('clCreate'); $('newLabel').focus(); });
 $('createGo').addEventListener('click', createClass);
@@ -1750,7 +1761,7 @@ $('tBack').addEventListener('click', () => { tPin = ''; openBoard(); });
 $('playerBtn').addEventListener('click', openPlayers);
 $('playersClose').addEventListener('click', () => { $('players').hidden = true; });
 $('addPlayer').addEventListener('click', () => openNick(null));
-$('nickDice').addEventListener('click', () => { $('nickInput').value = randomNick(); play('toggle', 1, .5); });
+$('nickDice').addEventListener('click', () => { $('nickInput').value = randomNick(); play('toggle'); });
 $('nickForm').addEventListener('submit', e => { e.preventDefault(); saveNick(); });
 $('nickSave').addEventListener('click', saveNick);
 $('nickCancel').addEventListener('click', openPlayers);
@@ -1758,7 +1769,7 @@ $('nickDelete').addEventListener('click', () => { $('delConfirm').hidden = false
 $('delNo').addEventListener('click', () => { $('delConfirm').hidden = true; });
 $('delYes').addEventListener('click', deletePlayer);
 $('recClose').addEventListener('click', () => { $('records').hidden = true; });
-$('easyBtn').addEventListener('click', () => { easy = !easy; store.set('easy', easy); initAudio(); play('toggle', 1, .5); syncLevel(); });
+$('easyBtn').addEventListener('click', () => { easy = !easy; store.set('easy', easy); initAudio(); play('toggle'); syncLevel(); });
 function openSettings() {
   initAudio();
   $('musicVol').value = vol.music; $('sfxVol').value = vol.sfx; syncMute();
@@ -1771,7 +1782,7 @@ $('setBtn').addEventListener('click', openSettings);
 $('setClose').addEventListener('click', () => { $('settings').hidden = true; });
 $('musicVol').addEventListener('input', e => { vol.music = +e.target.value; gstore.set('vol', vol); applyVolume(); syncMute(); });
 $('sfxVol').addEventListener('input', e => { vol.sfx = +e.target.value; gstore.set('vol', vol); applyVolume(); syncMute(); });
-$('sfxVol').addEventListener('change', () => play('coin', 1, .55)); // a sample of the new level
+$('sfxVol').addEventListener('change', () => play('coin')); // a sample of the new level
 // the first tap anywhere unlocks audio, so the title music can start
 addEventListener('pointerdown', () => initAudio(), { once: true });
 syncMute(); buildLevels(); syncLevel(); syncEquip(); syncPlayer();
@@ -1784,8 +1795,8 @@ $('codeForm').addEventListener('submit', e => {
   e.preventDefault();
   if (fnv($('codeInput').value.trim().toUpperCase().replace(/\s+/g, '')) === CODE_HASH) {
     unlocked = LEVELS.length; store.set('unlocked', unlocked);
-    $('codeMsg').textContent = '모든 레벨이 열렸어요!'; play('buy', 1, .6); buildLevels(); syncLevel();
-  } else { $('codeMsg').textContent = '코드가 맞지 않아요. 다시 확인해 주세요.'; play('nope', 1, .5); }
+    $('codeMsg').textContent = '모든 레벨이 열렸어요!'; play('buy'); buildLevels(); syncLevel();
+  } else { $('codeMsg').textContent = '코드가 맞지 않아요. 다시 확인해 주세요.'; play('nope'); }
 });
 addEventListener('keydown', e => {
   if (e.repeat || (e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) return;
