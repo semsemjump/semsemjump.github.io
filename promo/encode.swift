@@ -4,6 +4,9 @@
 //   /tmp/encode <framesDir> <sfx.json> <assetsDir> <out.mp4>
 //
 // Music: main theme 0–9.9 s, boss theme 9.7–14 s, title theme 13.8–25 s (short crossfades, fade out at the end).
+// Levels were set with promo/loudness.swift: the three themes differ by ~4 dB at the source (main −19.6, boss −15.8,
+// title −15.5 dBFS RMS). Gains bring each section to roughly −17…−19 dBFS RMS (the boss and dash sections carry
+// extra effects, so their music sits a little lower); effects peak around −10 dBFS and the mix stays below −1.5 dBFS.
 import AVFoundation
 import CoreGraphics
 import Foundation
@@ -79,14 +82,14 @@ func addMusic(_ file: String, from: Double, to: Double, volume: Float, fadeIn: D
   mixParams.append(p)
 }
 let total = length.seconds
-try addMusic("mus_main.m4a", from: 0, to: 9.9, volume: 0.5, fadeIn: 0.05, fadeOut: 0.3)
+try addMusic("mus_main.m4a", from: 0, to: 9.9, volume: 1.0, fadeIn: 0.05, fadeOut: 0.3)
 try addMusic("mus_boss.m4a", from: 9.7, to: 14.0, volume: 0.5, fadeIn: 0.2, fadeOut: 0.3)
 try addMusic("mus_title.m4a", from: 13.8, to: total, volume: 0.55, fadeIn: 0.3, fadeOut: 1.2)
 
 // sound effects go on as many tracks as needed so none of them overlap within a track
 struct Sfx: Decodable { let t: Double; let name: String }
 let sfx = try JSONDecoder().decode([Sfx].self, from: Data(contentsOf: sfxURL)).sorted { $0.t < $1.t }
-let volumes: [String: Float] = ["step": 0.3, "hit": 0.5, "coin": 0.55, "bossin": 0.6, "bossdown": 0.6, "record": 0.45]
+let volumes: [String: Float] = ["step": 0.3, "hit": 0.3, "coin": 0.35, "bossin": 0.3, "bossdown": 0.4, "record": 0.5]
 var lanes: [(track: AVMutableCompositionTrack, params: AVMutableAudioMixInputParameters, end: Double)] = []
 for e in sfx where e.t < total {
   let asset = AVURLAsset(url: assets.appendingPathComponent("sfx/\(e.name).wav"))
