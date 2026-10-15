@@ -154,7 +154,7 @@ const CARDS = [
     // astronauts hopping up the stairs beside the phone
     [[2, 940, 960], [6, 950, 720]].forEach(([id, x, y]) => { tile(material(y), x - 36, y + 36, 4); sprite(id, x, y, 4); });
     ppang(185, 1170, 2.6);
-    bubble(['빵쌤이 만든', '수학 게임!'], 190, 650, 30, 200, 760);
+    bubble(['빵쌤이 만든', '수학 게임!'], 190, 790, 30, 215, 858);
     chip('무료 · 설치 없이 바로!', W / 2, 1218, 40, PAL.green, PAL.ink);
     txt('넘겨서 더 보기 ▶', W - 50, 1150, 28, PAL.paper, { align: 'right', stroke: 6 });
   },
@@ -241,7 +241,14 @@ const CARDS = [
     background(8); header(8);
     title(['지금 바로', '폴짝!'], 190, 96);
     ppang(W / 2 - 150, 1000, 4);
-    bubble(['프로필 링크에서', '바로 시작해요!'], W / 2 + 230, 470, 40, W / 2 + 130, 590);
+    bubble(['프로필 링크에서', '바로 시작해요!'], W / 2 - 150, 468, 40, W / 2 - 120, 548);
+    // what to remember, in the space to the right of 빵쌤
+    [['1~5학년 19단계', PAL.green], ['10층마다 보스', PAL.red], ['우리 반 랭킹', PAL.gold], ['약점 학습 리포트', PAL.sky]].forEach(([s, col], i) => {
+      const x = 640, y = 410 + i * 112, w = 400;
+      box(x, y, w, 84, 'rgba(29,43,83,.92)', PAL.silver, 4);
+      R(x + 16, y + 18, 48, 48, col); txt('★', x + 40, y + 43, 32, PAL.ink, { stroke: 0 });
+      txt(s, x + 84, y + 43, 34, PAL.paper, { align: 'left', stroke: 6 });
+    });
     box(W / 2 - 400, 1050, 800, 104, PAL.yellow, PAL.paper, 8);
     txt('▲ 프로필 링크 클릭!', W / 2, 1104, 54, PAL.ink, { stroke: 0 });
     txt('무료 · 광고 없음 · 회원가입 없음', W / 2, 1200, 32, PAL.green, { stroke: 6 });
