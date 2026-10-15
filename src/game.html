@@ -68,7 +68,7 @@ body{background:var(--night);color:var(--paper);font-family:var(--pixel);overflo
 button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
 
 .overlay{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(11,16,36,.5);overflow:auto}
-#shop,#records,#codeBox,#settings,#players,#report{background:rgba(11,16,36,.9)}
+#shop,#records,#codeBox,#settings,#players,#report,#classes{background:rgba(11,16,36,.9)}
 #setup{background:rgba(11,16,36,.6)}
 .dialog{background:var(--navy);padding:18px 16px;max-width:320px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;margin:auto}
 .dialog h1,.dialog h2{margin:0;font-weight:700;line-height:1.05;color:var(--yellow);text-shadow:4px 4px 0 var(--plum)}
@@ -179,6 +179,19 @@ button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
 .reveal{font-weight:700;font-size:1.5rem;line-height:1.3;color:var(--green);text-shadow:3px 3px 0 var(--ink);font-variant-numeric:tabular-nums}
 .row{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;padding:4px}
 .row.grid2{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box}
+.row.grid2 .span2{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:10px;width:100%}
+.field input,.boardctl select{font:inherit;font-size:.95rem;padding:8px;background:var(--ink);color:var(--paper);border:0;box-shadow:0 0 0 3px var(--silver);min-width:0}
+.field input:focus,.boardctl select:focus{outline:3px dashed var(--yellow);outline-offset:4px}
+.boardctl{display:flex;gap:12px;width:100%;align-items:center;padding:4px;box-sizing:border-box}
+.boardctl select{flex:1}
+.bigcode{font-weight:700;font-size:2.6rem;letter-spacing:.18em;color:var(--yellow);text-shadow:3px 3px 0 var(--plum);font-variant-numeric:tabular-nums;user-select:text;-webkit-user-select:text}
+.mini{font:inherit;font-size:.68rem;padding:4px 6px;border:0;cursor:pointer;background:var(--ink);color:var(--silver);box-shadow:0 0 0 2px var(--silver);white-space:nowrap}
+.mini.danger{color:var(--red);box-shadow:0 0 0 2px var(--red)}
+.list .li.off{opacity:.45}
+.list .li .acts{display:flex;gap:8px;flex:none}
+.tset{display:flex;gap:8px;align-items:center;font-size:.8rem;color:var(--paper);text-align:left;width:100%}
+.tset input{width:18px;height:18px;accent-color:var(--yellow)}
 .hint{font-size:.7rem!important}
 .credit{font-size:.62rem!important;opacity:.7}
 .gain{color:var(--gold)!important}
@@ -231,6 +244,7 @@ button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
         <button class="player" id="playerBtn" aria-label="플레이어 바꾸기"><i class="face" id="playerFace"></i><span id="playerName"></span><small>바꾸기</small></button>
         <button class="btn blink" id="startBtn">▶ START</button>
         <div class="row grid2">
+          <button class="btn ghost span2" id="classBtn">학급 랭킹</button>
           <button class="btn ghost" id="shopBtn">상점</button>
           <button class="btn ghost" id="recBtn">내 기록</button>
           <button class="btn ghost" id="repBtn">학습 결과</button>
@@ -277,6 +291,7 @@ button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
         <p id="overRank"></p>
         <p class="gain" id="overCoins" hidden></p>
         <p class="gain" id="overUnlock" hidden></p>
+        <p class="gain" id="overClass" hidden></p>
         <div id="slowWrap" hidden style="width:100%">
           <div class="label" style="margin-bottom:6px">오래 고민한 문제</div>
           <div class="list" id="slowList"></div>
@@ -336,6 +351,81 @@ button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
           <button class="btn" id="delYes">지우기</button>
           <button class="btn ghost" id="delNo">그만두기</button>
         </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="classes" hidden>
+      <div class="dialog px" id="clJoin">
+        <h2>학급 랭킹</h2>
+        <p>선생님께 받은 학급 코드 6자리를 넣으세요.</p>
+        <form class="codeform" id="joinForm" autocomplete="off">
+          <input id="joinInput" type="text" maxlength="7" aria-label="학급 코드" spellcheck="false">
+          <button class="btn" type="submit" style="font-size:1rem;padding:8px 12px">참여</button>
+        </form>
+        <p class="codemsg" id="joinMsg"></p>
+        <p class="hint">랭킹에는 별명과 층수만 올라가요. 실명은 쓰지 마세요. 기록은 30일 뒤 자동으로 지워져요.</p>
+        <button class="linkbtn" id="toCreate">선생님: 새 학급 만들기</button>
+        <button class="btn ghost" data-close="classes">닫기</button>
+      </div>
+      <div class="dialog px" id="clBoard" hidden>
+        <h2 id="boardTitle">우리 반 랭킹</h2>
+        <p id="boardCode"></p>
+        <div class="boardctl">
+          <select id="boardLevel" aria-label="레벨"></select>
+          <button class="chip" id="boardEasy" aria-pressed="false">여유 모드</button>
+        </div>
+        <div class="list" id="boardList"></div>
+        <p class="codemsg" id="boardMsg"></p>
+        <div class="row">
+          <button class="btn ghost" id="boardRefresh">새로고침</button>
+          <button class="btn ghost" id="toTeacher">선생님 관리</button>
+        </div>
+        <button class="linkbtn" id="leaveClass">이 학급에서 나가기</button>
+        <button class="btn ghost" data-close="classes">닫기</button>
+      </div>
+      <div class="dialog px" id="clCreate" hidden>
+        <h2>새 학급 만들기</h2>
+        <p>학급 이름은 정하지 않아도 돼요. 학교 이름은 넣지 않는 걸 추천해요.</p>
+        <div class="field">
+          <input id="newLabel" type="text" maxlength="20" placeholder="학급 이름 (예: 우리 반)" aria-label="학급 이름" autocomplete="off">
+          <input id="newPin" type="password" inputmode="numeric" maxlength="8" placeholder="관리 비밀번호 (숫자 4~8자리)" aria-label="관리 비밀번호" autocomplete="new-password">
+        </div>
+        <p class="codemsg" id="createMsg"></p>
+        <div class="row">
+          <button class="btn" id="createGo">만들기</button>
+          <button class="btn ghost" id="createBack">뒤로</button>
+        </div>
+      </div>
+      <div class="dialog px" id="clMade" hidden>
+        <h2>학급이 만들어졌어요</h2>
+        <p>아이들에게 이 코드를 알려주세요.</p>
+        <div class="bigcode" id="madeCode"></div>
+        <p class="warn">비밀번호는 어디에도 보이지 않아요. 잊지 않게 따로 적어 두세요.</p>
+        <button class="btn" id="madeOk">랭킹 보기</button>
+      </div>
+      <div class="dialog px" id="clTeacher" hidden>
+        <h2>선생님 관리</h2>
+        <form class="codeform" id="pinForm" autocomplete="off">
+          <input id="pinInput" type="password" inputmode="numeric" maxlength="8" aria-label="학급 관리 비밀번호" autocomplete="current-password">
+          <button class="btn" type="submit" style="font-size:1rem;padding:8px 12px">확인</button>
+        </form>
+        <div id="tPanel" class="field" hidden>
+          <p id="tWhich"></p>
+          <div class="list" id="tList"></div>
+          <label class="tset"><input type="checkbox" id="tItems"> 아이템을 쓴 기록도 랭킹에 올리기</label>
+          <div class="nickrow"><input id="tLabel" type="text" maxlength="20" aria-label="학급 이름" placeholder="학급 이름"><button class="btn ghost" id="tSave">저장</button></div>
+          <div class="row">
+            <button class="btn ghost" id="tReset">랭킹 초기화</button>
+            <button class="btn ghost" id="tCloseClass">학급 닫기</button>
+          </div>
+          <div class="row" id="tConfirm" hidden>
+            <p class="warn" id="tConfirmText"></p>
+            <button class="btn" id="tYes">네</button>
+            <button class="btn ghost" id="tNo">아니요</button>
+          </div>
+        </div>
+        <p class="codemsg" id="tMsg"></p>
+        <button class="btn ghost" id="tBack">랭킹으로</button>
       </div>
     </div>
 
@@ -898,6 +988,7 @@ function showOver() {
   $('overAnswer').textContent = S.q.text.replace('?', S.q.ans);
   $('overRank').textContent = isNew ? '★ NEW RECORD ★' : rank ? `내 기록 ${rank}위 · BEST ${rec.top[0].f}층` : `BEST ${prevBest}층`;
   $('overCoins').hidden = !S.runCoins; $('overCoins').textContent = `코인 +${S.runCoins}`;
+  submitToClass();
   $('overUnlock').hidden = !S.newUnlock;
   if (S.newUnlock) $('overUnlock').textContent = `새 레벨이 열렸어요: Lv.${S.newUnlock} ${LEVELS[S.newUnlock - 1].short}`;
   // the three problems that took longest this run, worth another look
@@ -1380,6 +1471,136 @@ function deletePlayer() {
   editing = null; openPlayers();
 }
 
+// ---------- class ranking (Supabase). Only nickname, level, floor, item use and date leave this device ----------
+const SB_URL = 'https://fnxuoikvhwhuityqwpry.supabase.co';
+const SB_KEY = 'sb_publishable_Svk72pUabIEuEjuZv6gz_Q_9mZhVSOb'; // publishable: meant to sit in a web page
+const NET_MSG = '랭킹 서버에 연결하지 못했어요. 인터넷 연결을 확인하거나 puk840-hue.github.io/semsem-jump 에서 열어 주세요.';
+const T_ERR = { pin: '비밀번호가 맞지 않아요.', locked: '비밀번호를 5번 틀려서 10분 동안 잠겼어요.', none: '학급을 찾을 수 없어요.', label: '학급 이름은 20자까지예요.' };
+async function rpc(fn, args) {
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
+  const j = await r.json().catch(() => null);
+  if (!r.ok) throw Object.assign(new Error((j && j.message) || 'http ' + r.status), { info: j });
+  return j;
+}
+// a random id per player, so the board can mark "me" without knowing who anyone is
+function myUuid() {
+  let u = store.get('uuid', null);
+  if (!u) {
+    u = crypto.randomUUID ? crypto.randomUUID() : ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+    store.set('uuid', u);
+  }
+  return u;
+}
+const myClass = () => store.get('class', null);
+const myName = () => (profiles.find(p => p.id === pid) || { name: '' }).name;
+const cleanCode = v => v.toUpperCase().replace(/[^A-Z0-9]/g, '');
+function classPane(id) {
+  for (const p of ['clJoin', 'clBoard', 'clCreate', 'clMade', 'clTeacher']) $(p).hidden = p !== id;
+  $('classes').hidden = false;
+}
+function openClasses() {
+  initAudio();
+  if (myClass()) openBoard(); else { $('joinMsg').textContent = ''; $('joinInput').value = ''; classPane('clJoin'); $('joinInput').focus(); }
+}
+async function joinClass() {
+  const code = cleanCode($('joinInput').value);
+  if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) { $('joinMsg').textContent = '코드는 영어와 숫자 6자리예요.'; return play('nope', 1, .5); }
+  $('joinMsg').textContent = '확인하는 중…';
+  try {
+    const [c] = await rpc('class_info', { p_code: code });
+    if (!c) { $('joinMsg').textContent = '그런 학급이 없어요. 코드를 다시 확인해 주세요.'; return play('nope', 1, .5); }
+    store.set('class', { code: c.code, label: c.label, allowItems: c.allow_items });
+    play('buy', 1, .6); openBoard();
+  } catch (e) { $('joinMsg').textContent = NET_MSG; }
+}
+let view = null; // { level, easy } of the class board being viewed
+function openBoard() {
+  const c = myClass(); if (!c) return openClasses();
+  const sel = $('boardLevel');
+  if (!sel.options.length) for (const l of [...LEVELS, CLIMB]) sel.add(new Option(l === CLIMB ? '★ 도전 모드' : `Lv.${l.n} ${l.short}`, l.id));
+  view = view || { level, easy };
+  sel.value = view.level; $('boardEasy').setAttribute('aria-pressed', String(view.easy));
+  $('boardTitle').textContent = c.label || '우리 반 랭킹';
+  $('boardCode').textContent = `학급 코드 ${c.code}` + (c.allowItems ? '' : ' · 아이템 없이 한 기록만 올라가요');
+  classPane('clBoard'); loadBoard();
+}
+async function loadBoard() {
+  const c = myClass(), list = $('boardList');
+  list.innerHTML = ''; $('boardMsg').textContent = '불러오는 중…';
+  try {
+    const rows = await rpc('leaderboard', { p_code: c.code, p_level: view.level, p_easy: view.easy, p_player: myUuid() });
+    $('boardMsg').textContent = rows.length ? '' : '아직 기록이 없어요. 첫 기록의 주인공이 되어 보세요!';
+    for (const r of rows) {
+      const li = document.createElement('div'); li.className = 'li' + (r.me ? ' me' : '');
+      li.innerHTML = '<span></span><span class="sub"></span>';
+      li.children[0].textContent = `${r.rank}위  ${r.nickname}`;
+      li.children[1].textContent = `${r.floor}층` + (r.items ? ' · 아이템' : '');
+      list.appendChild(li);
+    }
+  } catch (e) { $('boardMsg').textContent = NET_MSG; }
+}
+// after every run: keep the best floor for this level on the class board
+function submitToClass() {
+  const c = myClass(), el = $('overClass');
+  el.hidden = !(c && S.score > 0);
+  if (el.hidden) return;
+  el.textContent = '학급 랭킹에 올리는 중…';
+  rpc('submit_score', { p_code: c.code, p_player: myUuid(), p_nick: myName(), p_level: level, p_easy: easy, p_items: S.itemUsed, p_floor: S.score })
+    .then(rank => {
+      el.textContent = rank != null ? `우리 반 랭킹 ${rank}위!`
+        : S.itemUsed && !c.allowItems ? '우리 반은 아이템 없이 한 기록만 랭킹에 올라가요.' : '이번 기록은 랭킹에 올리지 않았어요.';
+    })
+    .catch(e => {
+      el.textContent = e.info && e.info.message === 'nickname' ? '이 별명으로는 랭킹에 올릴 수 없어요. 별명을 바꿔 주세요.'
+        : e.info && e.info.message === 'no class' ? '학급이 닫혔어요. 새 학급 코드를 넣어 주세요.' : NET_MSG;
+      if (e.info && e.info.message === 'no class') store.set('class', null);
+    });
+}
+async function createClass() {
+  const label = $('newLabel').value.trim(), pin = $('newPin').value.trim();
+  if (!/^\d{4,8}$/.test(pin)) { $('createMsg').textContent = '비밀번호는 숫자 4~8자리예요.'; return play('nope', 1, .5); }
+  $('createMsg').textContent = '만드는 중…';
+  try {
+    const code = await rpc('create_class', { p_label: label, p_pin: pin });
+    store.set('class', { code, label, allowItems: true });
+    $('madeCode').textContent = code; $('newPin').value = '';
+    play('record', 1, .55); classPane('clMade');
+  } catch (e) { $('createMsg').textContent = (e.info && e.info.hint) || NET_MSG; }
+}
+let tPin = ''; // kept only in memory while the teacher panel is open
+async function teacherCall(fn, extra = {}) {
+  const c = myClass();
+  try {
+    const r = await rpc(fn, { p_code: c.code, p_pin: tPin, ...extra });
+    if (r && r.ok === false) { $('tMsg').textContent = T_ERR[r.error] || '처리하지 못했어요.'; if (r.error !== 'label') { tPin = ''; $('tPanel').hidden = true; $('pinForm').hidden = false; } return null; }
+    return r;
+  } catch (e) { $('tMsg').textContent = NET_MSG; return null; }
+}
+function openTeacher() { tPin = ''; $('pinInput').value = ''; $('tPanel').hidden = true; $('pinForm').hidden = false; $('tMsg').textContent = ''; classPane('clTeacher'); $('pinInput').focus(); }
+async function loadTeacher() {
+  const r = await teacherCall('teacher_board', { p_level: view.level, p_easy: view.easy });
+  if (!r) return;
+  const c = myClass();
+  store.set('class', { ...c, label: r.label, allowItems: r.allow_items });
+  $('tPanel').hidden = false; $('pinForm').hidden = true; $('tMsg').textContent = '';
+  $('tWhich').textContent = `${$('boardLevel').selectedOptions[0].text}${view.easy ? ' · 여유 모드' : ''} 기록`;
+  $('tItems').checked = r.allow_items; $('tLabel').value = r.label;
+  const list = $('tList'); list.innerHTML = '';
+  if (!r.rows.length) list.innerHTML = '<div class="empty">이 레벨에는 아직 기록이 없어요.</div>';
+  for (const row of r.rows) {
+    const li = document.createElement('div'); li.className = 'li' + (row.hidden ? ' off' : '');
+    li.innerHTML = '<span></span><span class="acts"><button class="mini"></button><button class="mini danger">지우기</button></span>';
+    li.children[0].textContent = `${row.nickname} · ${row.floor}층` + (row.items ? ' · 아이템' : '') + (row.hidden ? ' (숨김)' : '');
+    const [hide, del] = li.querySelectorAll('button');
+    hide.textContent = row.hidden ? '보이기' : '숨기기';
+    hide.addEventListener('click', async () => { if (await teacherCall('teacher_hide', { p_player: row.player_id, p_hidden: !row.hidden })) loadTeacher(); });
+    del.addEventListener('click', () => confirmT(`${row.nickname}의 기록을 모든 레벨에서 지울까요?`, async () => { if (await teacherCall('teacher_delete', { p_player: row.player_id })) loadTeacher(); }));
+    list.appendChild(li);
+  }
+}
+let tAction = null;
+function confirmT(text, fn) { $('tConfirmText').textContent = text; tAction = fn; $('tConfirm').hidden = false; }
+
 // ---------- learning report ----------
 const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 const lvName = id => { const l = LEVELS.find(x => x.id === id); return l ? `Lv.${l.n} ${l.short}` : id; };
@@ -1485,6 +1706,28 @@ $('repBtn').addEventListener('click', () => openReport('me'));
 $('tabMe').addEventListener('click', () => openReport('me'));
 $('tabAll').addEventListener('click', () => openReport('all'));
 $('repClose').addEventListener('click', () => { $('report').hidden = true; });
+$('classBtn').addEventListener('click', openClasses);
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { $(b.dataset.close).hidden = true; }));
+$('joinForm').addEventListener('submit', e => { e.preventDefault(); joinClass(); });
+$('toCreate').addEventListener('click', () => { $('createMsg').textContent = ''; $('newLabel').value = ''; $('newPin').value = ''; classPane('clCreate'); $('newLabel').focus(); });
+$('createGo').addEventListener('click', createClass);
+$('createBack').addEventListener('click', openClasses);
+$('madeOk').addEventListener('click', () => { view = null; openBoard(); });
+$('boardLevel').addEventListener('change', e => { view.level = e.target.value; loadBoard(); });
+$('boardEasy').addEventListener('click', () => { view.easy = !view.easy; $('boardEasy').setAttribute('aria-pressed', String(view.easy)); loadBoard(); });
+$('boardRefresh').addEventListener('click', loadBoard);
+$('leaveClass').addEventListener('click', () => { store.set('class', null); view = null; openClasses(); });
+$('toTeacher').addEventListener('click', openTeacher);
+$('pinForm').addEventListener('submit', e => { e.preventDefault(); tPin = $('pinInput').value.trim(); $('pinInput').value = ''; loadTeacher(); });
+$('tSave').addEventListener('click', async () => { if (await teacherCall('teacher_settings', { p_allow_items: $('tItems').checked, p_label: $('tLabel').value })) { $('tMsg').textContent = '저장했어요.'; loadTeacher(); } });
+$('tItems').addEventListener('change', () => $('tSave').click());
+$('tReset').addEventListener('click', () => confirmT('이 학급의 모든 랭킹 기록을 지울까요?', async () => { if (await teacherCall('teacher_reset')) { $('tMsg').textContent = '초기화했어요.'; loadTeacher(); } }));
+$('tCloseClass').addEventListener('click', () => confirmT('학급을 닫으면 코드와 기록이 모두 사라져요. 닫을까요?', async () => {
+  if (await teacherCall('teacher_close')) { store.set('class', null); tPin = ''; view = null; openClasses(); $('joinMsg').textContent = '학급을 닫았어요.'; }
+}));
+$('tYes').addEventListener('click', () => { $('tConfirm').hidden = true; const f = tAction; tAction = null; if (f) f(); });
+$('tNo').addEventListener('click', () => { $('tConfirm').hidden = true; tAction = null; });
+$('tBack').addEventListener('click', () => { tPin = ''; openBoard(); });
 $('playerBtn').addEventListener('click', openPlayers);
 $('playersClose').addEventListener('click', () => { $('players').hidden = true; });
 $('addPlayer').addEventListener('click', () => openNick(null));
@@ -1526,14 +1769,14 @@ $('codeForm').addEventListener('submit', e => {
   } else { $('codeMsg').textContent = '코드가 맞지 않아요. 다시 확인해 주세요.'; play('nope', 1, .5); }
 });
 addEventListener('keydown', e => {
-  if (e.repeat || (e.target && e.target.tagName === 'INPUT')) return;
+  if (e.repeat || (e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) return;
   initAudio();
   if (e.key === 'ArrowLeft' || e.code === 'KeyA') { e.preventDefault(); answer('L'); }
   else if (e.key === 'ArrowRight' || e.code === 'KeyD') { e.preventDefault(); answer('R'); }
   else if (e.key === '1' && S.mode === 'play') useItem('lens');
   else if (e.key === '2' && S.mode === 'play') useItem('pause');
-  else if (e.key === 'Escape') { for (const id of ['shop', 'records', 'codeBox', 'settings', 'players', 'report']) $(id).hidden = true; }
-  else if (e.key === 'Enter' && ['shop', 'records', 'codeBox', 'settings', 'players', 'report'].every(id => $(id).hidden)) {
+  else if (e.key === 'Escape') { for (const id of ['shop', 'records', 'codeBox', 'settings', 'players', 'report', 'classes']) $(id).hidden = true; }
+  else if (e.key === 'Enter' && ['shop', 'records', 'codeBox', 'settings', 'players', 'report', 'classes'].every(id => $(id).hidden)) {
     // Enter walks forward: title → step 1 → step 2 → start; after a fall it climbs again
     if (document.activeElement && document.activeElement.tagName === 'BUTTON' && document.activeElement !== document.body) return;
     e.preventDefault();
