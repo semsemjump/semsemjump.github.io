@@ -1,0 +1,1280 @@
+<meta charset="utf-8">
+<title>셈셈 점프</title>
+<style>
+/* Galmuri11 Bold — Copyright (c) 2019–2025 Lee Minseo (quiple@quiple.dev), SIL Open Font License 1.1, https://github.com/quiple/galmuri */
+/* Sprites and sounds — Kenney (kenney.nl): Pixel Platformer, Digital Audio, Interface Sounds, Music Jingles. CC0 1.0 */
+@font-face{font-family:"Galmuri11";src:url(data:font/woff2;base64,__GALMURI__) format("woff2");font-weight:400 700;font-display:swap}
+
+/* Layout: one-screen retro handheld — HUD strip, pixel canvas in a notched frame with the problem sign inside it, two chunky answer buttons */
+:root{
+  --ink:#000; --night:#0b1024; --navy:#2b2f4f; --plum:#7E2553; --silver:#C2C3C7; --dim:#8a8fae;
+  --paper:#FFF1E8; --red:#e4573d; --yellow:#FFEC27; --gold:#f2b63d; --green:#3fcf6a; --ice:#7fd3ff;
+  --pixel:"Galmuri11","DungGeunMo",ui-monospace,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--night);color:var(--paper);font-family:var(--pixel);overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:manipulation;-webkit-font-smoothing:none}
+.app{height:100%;box-sizing:border-box;max-width:560px;margin:0 auto;padding-block:14px;padding-inline:16px;display:flex;flex-direction:column;gap:12px}
+.px{box-shadow:0 -4px 0 0 var(--paper),0 4px 0 0 var(--paper),-4px 0 0 0 var(--paper),4px 0 0 0 var(--paper)}
+.coin-ico{display:inline-block;width:18px;height:18px;vertical-align:-4px;background-image:var(--tiles);background-position:-198px -126px;background-repeat:no-repeat;image-rendering:pixelated}
+
+.hud{display:flex;align-items:center;gap:12px;font-size:1rem}
+.hud .floor{min-width:4.2em;color:var(--yellow);font-variant-numeric:tabular-nums}
+.hud .floor b{font-size:1.5rem;font-weight:700}
+.hud .coins{color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap;display:flex;align-items:center;gap:3px}
+.gauge{flex:1;height:16px;background:var(--ink);padding:2px;box-sizing:border-box;box-shadow:0 -2px 0 0 var(--silver),0 2px 0 0 var(--silver),-2px 0 0 0 var(--silver),2px 0 0 0 var(--silver)}
+.gauge i{display:block;height:100%;width:100%;background:repeating-linear-gradient(90deg,var(--g) 0 6px,transparent 6px 8px);--g:var(--green)}
+.gauge.mid i{--g:var(--gold)}
+.gauge.low i{--g:var(--red)}
+.gauge.frozen i{--g:var(--ice)}
+.gear{display:flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;background:transparent;border:0;cursor:pointer}
+.vol{width:100%;display:flex;flex-direction:column;gap:6px;text-align:left}
+.vol label{display:flex;justify-content:space-between;font-size:.85rem;color:var(--paper)}
+.vol label b{color:var(--yellow);font-variant-numeric:tabular-nums}
+.vol input[type=range]{width:100%;accent-color:var(--yellow);height:24px;margin:0}
+.vol input[type=range]:focus-visible{outline:3px dashed var(--yellow);outline-offset:4px}
+
+.board{position:relative;flex:1;min-height:0;margin:4px;background:var(--navy);overflow:hidden}
+.board canvas{position:absolute;left:0;top:0;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+
+/* problem sign inside the board */
+.banner{position:absolute;left:0;right:0;top:0;z-index:1;padding:8px 10px 10px;background:rgba(11,16,36,.78);border-bottom:4px solid var(--paper);text-align:center;pointer-events:none}
+.banner .btop{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.72rem;color:var(--silver);min-height:1.2em}
+.banner .prob{font-weight:700;font-size:clamp(1.9rem,8.5vw,2.8rem);line-height:1.15;color:var(--yellow);text-shadow:3px 3px 0 var(--plum);font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:2px}
+.banner .hintline{font-size:.8rem;color:var(--ice);margin-top:4px}
+.banner.boss{background:rgba(90,16,40,.88);border-bottom-color:var(--red)}
+.banner.boss .prob{color:var(--paper);text-shadow:3px 3px 0 var(--ink)}
+.bosshp{display:flex;gap:3px;align-items:center;color:var(--red);font-weight:700}
+.bosshp i{width:10px;height:10px;background:var(--red);box-shadow:0 0 0 2px var(--ink)}
+.bosshp i.off{background:#3a2030}
+
+.itembar{position:absolute;right:8px;bottom:8px;z-index:1;display:flex;gap:10px}
+.ico{display:inline-block;flex:none;width:24px;height:24px;vertical-align:middle;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}
+.ico.sm{width:18px;height:18px}
+.sname .ico,.pn .ico{margin-right:6px}
+.itembtn{display:flex;align-items:center;gap:4px;font:inherit;font-size:.8rem;color:var(--paper);background:rgba(11,16,36,.85);border:0;padding:6px 8px;cursor:pointer;
+  box-shadow:0 -2px 0 0 var(--paper),0 2px 0 0 var(--paper),-2px 0 0 0 var(--paper),2px 0 0 0 var(--paper)}
+.itembtn b{color:var(--yellow)}
+.itembtn kbd{font:inherit;color:var(--dim);font-size:.7rem}
+.itembtn:disabled{opacity:.35;cursor:default}
+
+.pads{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:4px}
+.pad{font:inherit;color:var(--paper);background:var(--navy);border:0;padding:10px 12px 14px;min-height:68px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;
+  box-shadow:0 -4px 0 0 var(--paper),0 4px 0 0 var(--paper),-4px 0 0 0 var(--paper),4px 0 0 0 var(--paper),inset 0 -6px 0 0 var(--ink)}
+.pad .n{font-weight:700;font-size:2rem;flex:1;text-align:center;font-variant-numeric:tabular-nums}
+.pad .k{font-size:.75rem;color:var(--silver)}
+.pad:active,.pad.hit{transform:translateY(3px);box-shadow:0 -4px 0 0 var(--paper),0 4px 0 0 var(--paper),-4px 0 0 0 var(--paper),4px 0 0 0 var(--paper),inset 0 -2px 0 0 var(--ink);background:var(--plum)}
+button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
+
+.overlay{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(11,16,36,.5);overflow:auto}
+#shop,#records,#codeBox,#settings{background:rgba(11,16,36,.9)}
+#setup{background:rgba(11,16,36,.6)}
+.dialog{background:var(--navy);padding:18px 16px;max-width:320px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;margin:auto}
+.dialog h1,.dialog h2{margin:0;font-weight:700;line-height:1.05;color:var(--yellow);text-shadow:4px 4px 0 var(--plum)}
+.dialog h1{font-size:clamp(2.4rem,12vw,3.4rem)}
+.dialog h2{font-size:1.6rem;text-wrap:balance}
+.dialog p{margin:0;line-height:1.7;font-size:.85rem;color:var(--silver)}
+.label{font-size:.7rem;color:var(--silver);letter-spacing:.08em}
+.heroes{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
+.hero{position:relative;width:48px;height:48px;border:0;padding:0;cursor:pointer;background-color:var(--ink);background-repeat:no-repeat;image-rendering:pixelated;opacity:.6;
+  box-shadow:0 -2px 0 0 var(--silver),0 2px 0 0 var(--silver),-2px 0 0 0 var(--silver),2px 0 0 0 var(--silver)}
+.hero[aria-pressed="true"]{opacity:1;background-color:#4a5280;box-shadow:0 -3px 0 0 var(--yellow),0 3px 0 0 var(--yellow),-3px 0 0 0 var(--yellow),3px 0 0 0 var(--yellow)}
+.hero.locked{filter:grayscale(1) brightness(.6)}
+.hero .lock{position:absolute;left:0;right:0;bottom:-2px;font-size:.62rem;color:var(--gold);background:rgba(0,0,0,.75);filter:none}
+.levels{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:4px;width:100%;box-sizing:border-box}
+.lv{font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:44px;padding:3px 0;border:0;cursor:pointer;background:var(--ink);color:var(--paper);
+  box-shadow:0 -3px 0 0 var(--silver),0 3px 0 0 var(--silver),-3px 0 0 0 var(--silver),3px 0 0 0 var(--silver)}
+.lv b{font-size:1rem;font-variant-numeric:tabular-nums}
+.lv .st{font-size:.55rem;letter-spacing:1px;color:var(--gold)}
+.lv.locked{color:#5a5f7d;background:#141833}
+.lv.locked .st{color:#5a5f7d}
+.lv[aria-pressed="true"]{background:var(--yellow);color:var(--ink);box-shadow:0 -3px 0 0 var(--paper),0 3px 0 0 var(--paper),-3px 0 0 0 var(--paper),3px 0 0 0 var(--paper)}
+.lv[aria-pressed="true"] .st{color:var(--plum)}
+.lv.climb{grid-column:1/-1;flex-direction:row;gap:8px}
+.lvinfo{width:100%;text-align:left;background:rgba(0,0,0,.35);padding:8px 10px;box-sizing:border-box;display:flex;flex-direction:column;gap:3px}
+.lvinfo .lvname{font-weight:700;font-size:.85rem;color:var(--paper);line-height:1.45}
+.lvinfo .lvmeta{font-size:.72rem;color:var(--silver);line-height:1.5}
+.lvinfo .lvlock{font-size:.72rem;color:var(--gold)}
+.linkbtn{font:inherit;font-size:.7rem;color:var(--dim);background:none;border:0;text-decoration:underline;cursor:pointer;padding:4px}
+.codeform{display:flex;gap:8px;width:100%}
+.codeform input{flex:1;min-width:0;font:inherit;font-size:1rem;padding:8px;background:var(--ink);color:var(--paper);border:0;box-shadow:0 0 0 3px var(--silver);text-transform:uppercase}
+.codeform input:focus{outline:3px dashed var(--yellow);outline-offset:4px}
+.codemsg{min-height:1.4em}
+.title{font-size:clamp(2rem,10.5vw,3.1rem)!important;white-space:nowrap}
+.tagline{color:var(--paper)!important}
+.maker{font-size:.75rem!important;color:var(--paper)!important}
+.steps{display:flex;align-items:center;justify-content:space-between;width:100%;font-size:.75rem;color:var(--silver)}
+.steps b{color:var(--yellow)}
+.navrow{display:flex;gap:14px;justify-content:space-between;width:100%;padding:4px;box-sizing:border-box}
+.navrow .btn{flex:1}
+.summary{width:100%;display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.35);padding:8px 10px;box-sizing:border-box;text-align:left}
+.summary .face{width:48px;height:48px;flex:none;background-repeat:no-repeat;image-rendering:pixelated}
+.summary .sm{display:flex;flex-direction:column;gap:2px;min-width:0}
+.summary .sm b{font-size:.85rem;color:var(--paper);line-height:1.4}
+.summary .sm span{font-size:.72rem;color:var(--silver)}
+.prep{width:100%;display:flex;flex-direction:column;gap:8px}
+.prow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;padding:8px;background:rgba(0,0,0,.35);text-align:left}
+.prow .pn{font-weight:700;font-size:.85rem}
+.prow .pn small{font-weight:400;color:var(--dim);margin-left:4px}
+.prow .pd{grid-column:1/-1;font-size:.7rem;color:var(--silver);line-height:1.5}
+.prow .pctl{display:flex;gap:8px;align-items:center}
+.take{font:inherit;font-size:.75rem;font-weight:700;padding:6px 8px;border:0;cursor:pointer;background:var(--ink);color:var(--silver);box-shadow:0 0 0 2px var(--silver)}
+.take[aria-pressed="true"]{background:var(--yellow);color:var(--ink);box-shadow:0 0 0 2px var(--paper)}
+.take:disabled{opacity:.35;cursor:default}
+.prow .buy{font:inherit;font-weight:700;font-size:.8rem;color:var(--ink);background:var(--gold);border:0;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:3px;white-space:nowrap}
+.prow .buy:disabled{background:#4a4f6a;color:var(--dim);cursor:default}
+.chip{font:inherit;font-weight:700;font-size:.95rem;min-height:36px;padding:4px 6px;border:0;cursor:pointer;background:var(--ink);color:var(--silver);font-variant-numeric:tabular-nums;
+  box-shadow:0 -3px 0 0 var(--silver),0 3px 0 0 var(--silver),-3px 0 0 0 var(--silver),3px 0 0 0 var(--silver)}
+.chip.wide{grid-column:1/-1}
+.chip[aria-pressed="true"]{background:var(--yellow);color:var(--ink);box-shadow:0 -3px 0 0 var(--paper),0 3px 0 0 var(--paper),-3px 0 0 0 var(--paper),3px 0 0 0 var(--paper)}
+.chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;padding:4px}
+.chips .chip{font-size:.8rem}
+.dialog .desc{color:var(--paper);min-height:3.4em;font-size:.8rem}
+.btn{font:inherit;font-weight:700;font-size:1.2rem;padding:10px 18px;border:0;cursor:pointer;background:var(--red);color:var(--paper);
+  box-shadow:0 -4px 0 0 var(--paper),0 4px 0 0 var(--paper),-4px 0 0 0 var(--paper),4px 0 0 0 var(--paper),inset 0 -4px 0 0 var(--plum)}
+.btn.ghost{background:var(--ink);font-size:.95rem;padding:8px 12px;box-shadow:0 -4px 0 0 var(--silver),0 4px 0 0 var(--silver),-4px 0 0 0 var(--silver),4px 0 0 0 var(--silver)}
+.btn:active{transform:translateY(2px)}
+.btn:disabled{opacity:.4;cursor:default;transform:none}
+.blink{animation:blink 1s steps(2,jump-none) infinite}
+@keyframes blink{50%{opacity:.25}}
+.reveal{font-weight:700;font-size:1.5rem;line-height:1.3;color:var(--green);text-shadow:3px 3px 0 var(--ink);font-variant-numeric:tabular-nums}
+.row{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;padding:4px}
+.hint{font-size:.7rem!important}
+.credit{font-size:.62rem!important;opacity:.7}
+.gain{color:var(--gold)!important}
+
+/* review, records and shop lists */
+.list{width:100%;display:flex;flex-direction:column;gap:6px;text-align:left;font-size:.8rem}
+.list .li{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;background:rgba(0,0,0,.35);font-variant-numeric:tabular-nums}
+.list .li span:first-child{min-width:0;overflow-wrap:anywhere}
+.list .li .sub{color:var(--dim);white-space:nowrap}
+.list .li.me{outline:2px solid var(--yellow)}
+.list .empty{color:var(--dim);text-align:center;padding:8px}
+.bars{width:100%;height:64px;display:flex;align-items:flex-end;gap:2px;padding:4px;box-sizing:border-box;background:rgba(0,0,0,.35)}
+.bars i{flex:1;background:var(--green);min-height:2px}
+.bars i:last-child{background:var(--yellow)}
+.srow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:8px;background:rgba(0,0,0,.35);text-align:left;width:100%;box-sizing:border-box}
+.srow .sname{font-weight:700;font-size:.9rem;color:var(--paper)}
+.srow .sname small{font-weight:400;color:var(--dim);margin-left:4px}
+.srow .sdesc{grid-column:1;font-size:.72rem;color:var(--silver);line-height:1.5}
+.srow .buy{grid-row:1/3;grid-column:2;font:inherit;font-weight:700;font-size:.9rem;color:var(--ink);background:var(--gold);border:0;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:3px;white-space:nowrap}
+.srow .buy:disabled{background:#4a4f6a;color:var(--dim);cursor:default}
+.srow .face{width:32px;height:32px;display:inline-block;vertical-align:middle;background-repeat:no-repeat;image-rendering:pixelated;margin-right:6px}
+.shoplist{width:100%;display:flex;flex-direction:column;gap:8px}
+.wallet{color:var(--gold)!important;font-size:1rem!important}
+@media (prefers-reduced-motion:reduce){.blink{animation:none}}
+</style>
+
+<div class="app">
+  <div class="hud">
+    <div class="floor"><b id="score">0</b>층</div>
+    <div class="gauge" id="gauge" role="progressbar" aria-label="남은 시간"><i id="gaugeFill"></i></div>
+    <div class="coins" aria-label="코인"><i class="coin-ico"></i><b id="coins">0</b></div>
+    <button class="gear" id="gearBtn" aria-label="설정 열기" title="설정"><i class="ico" data-ico="gear"></i></button>
+  </div>
+  <div class="board px" id="board">
+    <canvas id="cv"></canvas>
+    <div class="banner" id="banner" hidden>
+      <div class="btop"><span id="stageTag"></span><span id="bestTag"></span><span class="bosshp" id="bossHp" hidden></span></div>
+      <div class="prob" id="prob" aria-live="polite">&nbsp;</div>
+      <div class="hintline" id="hintLine" hidden></div>
+    </div>
+    <div class="itembar" id="itemBar" hidden>
+      <button class="itembtn" id="useLens" aria-label="어림 돋보기 쓰기"><i class="ico sm" data-ico="lens"></i><b id="lensN">0</b> <kbd>1</kbd></button>
+      <button class="itembtn" id="usePause" aria-label="멈춤 시계 쓰기"><i class="ico sm" data-ico="pause"></i><b id="pauseN">0</b> <kbd>2</kbd></button>
+    </div>
+
+    <div class="overlay" id="menu">
+      <div class="dialog px">
+        <h1 class="title">셈셈 점프</h1>
+        <p class="tagline">문제를 풀고 정답 계단으로 폴짝!<br>우주까지 폴짝!</p>
+        <button class="btn blink" id="startBtn">▶ START</button>
+        <div class="row">
+          <button class="btn ghost" id="shopBtn">상점</button>
+          <button class="btn ghost" id="recBtn">내 기록</button>
+          <button class="btn ghost" id="setBtn">설정</button>
+        </div>
+        <p class="hint">← → 또는 A D 로 이동 · 1 어림 · 2 멈춤 · Enter</p>
+        <button class="linkbtn" id="codeBtn">해금 코드 입력</button>
+        <p class="maker">만든이 빵쌤 (ppang_sem)</p>
+        <p class="credit">그림·효과음 Kenney (CC0) · 음악 Zane Little Music (CC0) · 글꼴 갈무리 (OFL)</p>
+      </div>
+    </div>
+
+    <div class="overlay" id="setup" hidden>
+      <div class="dialog px" id="step1">
+        <div class="steps"><span>준비</span><span><b>1</b> / 2</span></div>
+        <div class="label">캐릭터</div>
+        <div class="heroes" id="heroes" role="group" aria-label="캐릭터 고르기"></div>
+        <div class="label">레벨</div>
+        <div class="levels" id="levels" role="group" aria-label="레벨 고르기"></div>
+        <div class="lvinfo" aria-live="polite"><div class="lvname" id="lvName"></div><div class="lvmeta" id="lvMeta"></div><div class="lvlock" id="lvLock"></div></div>
+        <div class="navrow">
+          <button class="btn ghost" id="toTitle">◀ 처음</button>
+          <button class="btn" id="nextBtn">다음 ▶</button>
+        </div>
+      </div>
+      <div class="dialog px" id="step2" hidden>
+        <div class="steps"><span>준비</span><span><b>2</b> / 2</span></div>
+        <div class="summary"><i class="face" id="sumFace"></i><div class="sm"><b id="sumLevel"></b><span id="sumMeta"></span></div></div>
+        <div class="chips"><button class="chip" id="easyBtn" aria-pressed="false">여유 모드 · 시간 1.5배</button></div>
+        <div class="label">아이템 <span class="coins"><i class="coin-ico"></i> <b id="prepCoins">0</b></span></div>
+        <div class="prep" id="prep"></div>
+        <div class="navrow">
+          <button class="btn ghost" id="backBtn">◀ 이전</button>
+          <button class="btn blink" id="goBtn">▶ 출발!</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="over" hidden>
+      <div class="dialog px">
+        <h2 id="overTitle">GAME OVER</h2>
+        <p id="overReason">오답! 정답은</p>
+        <div class="reveal" id="overAnswer"></div>
+        <p id="overRank"></p>
+        <p class="gain" id="overCoins" hidden></p>
+        <p class="gain" id="overUnlock" hidden></p>
+        <div id="slowWrap" hidden style="width:100%">
+          <div class="label" style="margin-bottom:6px">오래 고민한 문제</div>
+          <div class="list" id="slowList"></div>
+        </div>
+        <div class="row">
+          <button class="btn" id="retryBtn">다시 오르기</button>
+          <button class="btn ghost" id="setupBtn">설정 바꾸기</button>
+          <button class="btn ghost" id="menuBtn">처음으로</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="shop" hidden>
+      <div class="dialog px">
+        <h2>상점</h2>
+        <p class="wallet"><i class="coin-ico"></i> <b id="shopCoins">0</b></p>
+        <div class="shoplist" id="shopList"></div>
+        <button class="btn ghost" id="shopClose">닫기</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="codeBox" hidden>
+      <div class="dialog px">
+        <h2>해금 코드</h2>
+        <p>코드를 넣으면 모든 레벨이 열려요.</p>
+        <form class="codeform" id="codeForm" autocomplete="off">
+          <input id="codeInput" type="text" maxlength="24" aria-label="코드" spellcheck="false">
+          <button class="btn" id="codeOk" type="submit" style="font-size:1rem;padding:8px 12px">확인</button>
+        </form>
+        <p class="codemsg" id="codeMsg"></p>
+        <button class="btn ghost" id="codeClose" type="button">닫기</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="settings" hidden>
+      <div class="dialog px">
+        <h2>설정</h2>
+        <div class="vol">
+          <label for="musicVol">배경음악 <b id="musicVolN">60%</b></label>
+          <input type="range" id="musicVol" min="0" max="100" step="10" value="60">
+        </div>
+        <div class="vol">
+          <label for="sfxVol">효과음 <b id="sfxVolN">100%</b></label>
+          <input type="range" id="sfxVol" min="0" max="100" step="10" value="100">
+        </div>
+        <p class="hint" id="pausedNote" hidden>설정을 여는 동안 게임이 멈춰요.</p>
+        <button class="btn ghost" id="setClose">닫기</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="records" hidden>
+      <div class="dialog px">
+        <h2>내 기록</h2>
+        <p id="recMode"></p>
+        <div class="list" id="recList"></div>
+        <div class="label">최근 20판</div>
+        <div class="bars" id="recBars" aria-label="최근 기록 막대그래프"></div>
+        <p class="hint">기록은 이 기기의 브라우저에만 저장돼요.</p>
+        <button class="btn ghost" id="recClose">닫기</button>
+      </div>
+    </div>
+  </div>
+  <div class="pads">
+    <button class="pad" id="padL" aria-label="왼쪽 계단"><span class="k">◀A</span><span class="n" id="padLn">?</span></button>
+    <button class="pad" id="padR" aria-label="오른쪽 계단"><span class="n" id="padRn">?</span><span class="k">D▶</span></button>
+  </div>
+</div>
+
+<script>
+const ASSETS = __ASSETS__;
+const $ = id => document.getElementById(id);
+const board = $('board'), cv = $('cv'), ctx = cv.getContext('2d');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const PAL = { ink: '#000000', paper: '#FFF1E8', silver: '#C2C3C7', yellow: '#FFEC27', gold: '#f2b63d', green: '#3fcf6a', red: '#e4573d', brown: '#b86f50', tan: '#e4a672' };
+const FONT = '12px Galmuri11, monospace';
+document.documentElement.style.setProperty('--tiles', `url(${ASSETS.tiles})`);
+
+// ---------- storage (this browser only) ----------
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('stair-math-' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('stair-math-' + k, JSON.stringify(v)); } catch (e) {} },
+};
+
+// ---------- sprite sheets (Kenney Pixel Platformer, packed: no spacing) ----------
+const img = src => { const i = new Image(); i.src = src; return i; };
+const SHEET = { tiles: img(ASSETS.tiles), chars: img(ASSETS.chars), bgs: img(ASSETS.bgs) };
+const TS = 18, CS = 24, BS = 24;
+const T = { grass: 0, sand: 40, snow: 80, flagA: 111, flagB: 112, coinA: 151, coinB: 152, digit0: 160 };
+const HEROES = [{ name: '초록', f: [0, 1], price: 0 }, { name: '파랑', f: [2, 3], price: 30 }, { name: '분홍', f: [4, 5], price: 40 },
+  { name: '노랑', f: [6, 7], price: 60 }, { name: '살구', f: [9, 10], price: 80 }];
+const BOSSES = [{ name: '화난 블록', f: [11, 12] }, { name: '가시 공', f: [8] }, { name: '박쥐', f: [24, 25, 26] }, { name: '드릴 로봇', f: [15, 16, 17] }, { name: '큰 로봇', f: [21, 22, 23] }];
+let ready = false, DIG = [];
+Promise.all(Object.values(SHEET).map(i => i.decode ? i.decode().catch(() => {}) : 0)).then(() => {
+  // measure each digit glyph so numbers can be packed tightly
+  const o = document.createElement('canvas'); o.width = TS; o.height = TS;
+  const ox = o.getContext('2d');
+  for (let d = 0; d < 10; d++) {
+    const id = T.digit0 + d; ox.clearRect(0, 0, TS, TS);
+    ox.drawImage(SHEET.tiles, (id % 20) * TS, Math.floor(id / 20) * TS, TS, TS, 0, 0, TS, TS);
+    const px = ox.getImageData(0, 0, TS, TS).data;
+    let x0 = TS, x1 = 0, y0 = TS, y1 = 0;
+    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) if (px[(y * TS + x) * 4 + 3] > 0) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    DIG[d] = { x0, w: x1 - x0 + 1, y0, h: y1 - y0 + 1 };
+  }
+  // sample the background sheet's sky colours so the gradient meets the hills seamlessly
+  const b = document.createElement('canvas'); b.width = SHEET.bgs.width; b.height = SHEET.bgs.height;
+  const bx = b.getContext('2d'); bx.drawImage(SHEET.bgs, 0, 0);
+  const at = (x, y) => [...bx.getImageData(x, y, 1, 1).data.slice(0, 3)];
+  SKY[0][1] = at(2, 2); SKY[0][2] = at(6 * BS + 2, 2);
+  SKY[1][2] = at(2, 2);
+  SKY[2][2] = at(4 * BS + 2, 2);
+  ready = true; buildHeroes();
+});
+
+// ---------- low-res canvas ----------
+let P = 3, LW = 160, LH = 140;
+function resize() {
+  const bw = board.clientWidth, bh = board.clientHeight;
+  P = Math.max(2, Math.round(Math.min(bw / 140, bh / 130)));
+  LW = Math.ceil(bw / P); LH = Math.ceil(bh / P);
+  cv.width = LW; cv.height = LH;
+  cv.style.width = LW * P + 'px'; cv.style.height = LH * P + 'px';
+  ctx.imageSmoothingEnabled = false;
+}
+new ResizeObserver(resize).observe(board); resize();
+document.fonts && document.fonts.load(FONT).catch(() => {});
+
+// ---------- saved state ----------
+let vol = store.get('vol', { music: 60, sfx: store.get('muted', false) ? 0 : 100 }), level = store.get('level', '1'), easy = store.get('easy', false);
+let coins = store.get('coins', 0), inv = Object.assign({ pause: 0, lens: 0, magnet: 0, chute: 0, sword: 0 }, store.get('inv', {}));
+let owned = store.get('heroes', [0]), hero = store.get('hero', 0);
+if (!owned.includes(hero)) hero = 0;
+const equip = { magnet: false, chute: false, sword: false };
+const modeKey = (id = level, e = easy) => 'L' + id + (e ? '-easy' : '');
+let unlocked = store.get('unlocked', 1); // highest level number that is open
+const loadRec = (id, e) => store.get('rec-' + modeKey(id, e), null) || { top: [], recent: [] };
+const bestNow = () => (loadRec().top[0] || { f: 0 }).f;
+// stars use the better of normal and relaxed play: 10, 20, 30 floors
+const bestAny = id => Math.max(...[false, true].map(e => (loadRec(id, e).top[0] || { f: 0 }).f));
+const stars = id => { const b = bestAny(id); return b >= 30 ? 3 : b >= 20 ? 2 : b >= 10 ? 1 : 0; };
+const isOpen = id => id === 'climb' || +id <= unlocked;
+function unlockTo(n) {
+  n = Math.min(LEVELS.length, n);
+  if (n <= unlocked) return;
+  unlocked = n; store.set('unlocked', n); S.newUnlock = n;
+  S.pops.push({ x: S.p.x, y: S.p.y + 3.4, text: `Lv.${n} 열림!`, life: 1.6 });
+}
+
+const S = { mode: 'menu', path: [{ x: 0, y: 0 }], score: 0, gauge: 1, q: null, correct: 'L', choice: { L: '?', R: '?' },
+  p: { x: 0, y: 0 }, face: 1, hop: null, fall: null, cam: { x: 0, y: 0 }, dust: [], pops: [], reason: '', shake: 0, time: 0, tick: 0,
+  qStart: 0, solved: [], coinNext: false, runCoins: 0, boss: null, bossNo: 0, freeze: 0, used: { lens: 0, pause: 0 },
+  run: { magnet: false, chute: false, sword: false }, itemUsed: false, reviving: false, reviveUsed: false, hint: '' };
+
+// ---------- sound: Kenney samples, decoded on first tap ----------
+let actx = null;
+const BUF = {};
+const SOUNDS = ['step', 'milestone', 'wrong', 'tick', 'toggle', 'start', 'gameover', 'record', 'coin', 'hit', 'bossin', 'bossdown', 'buy', 'item', 'nope'];
+let sfxBus = null, musicBus = null;
+const decode = uri => {
+  const bin = atob(uri.split(',')[1]), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Promise((ok, no) => actx.decodeAudioData(bytes.buffer, ok, no));
+};
+function initAudio() {
+  if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
+  try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  sfxBus = actx.createGain(); sfxBus.connect(actx.destination);
+  musicBus = actx.createGain(); musicBus.connect(actx.destination);
+  applyVolume();
+  for (const name of SOUNDS) decode(ASSETS['snd_' + name]).then(b => { BUF[name] = b; }).catch(() => {});
+  for (const name of Object.keys(TRACKS)) decode(ASSETS['mus_' + name]).then(b => { MUSIC[name] = b; if (music.want === name) setTrack(name, true); }).catch(() => {});
+  setTrack(S.mode === 'play' ? 'main' : 'title');
+}
+// the sliders go 0–100; a squared curve makes the low end feel even
+const applyVolume = () => {
+  if (!actx) return;
+  sfxBus.gain.value = (vol.sfx / 100) ** 2;
+  musicBus.gain.value = (vol.music / 100) ** 2 * .7;
+};
+function play(name, rate = 1, v = .6) {
+  if (!vol.sfx || !actx || !BUF[name]) return;
+  try {
+    const s = actx.createBufferSource(), g = actx.createGain();
+    s.buffer = BUF[name]; s.playbackRate.value = rate; g.gain.value = v;
+    s.connect(g).connect(sfxBus); s.start();
+  } catch (e) {}
+}
+
+// ---------- background music: Zane Little Music (CC0) loops ----------
+// AAC adds 2112 samples of encoder delay up front; loop exactly over the real frames so the seam is silent
+const TRACKS = { title: 1511936, main: 4671559, boss: 1128832 }; // valid frames at 44.1 kHz
+const MUSIC = {};
+const music = { want: null, cur: null, src: null, gain: null };
+function setTrack(name, force) {
+  music.want = name;
+  if (!actx || (!force && music.cur === name)) return;
+  // fade out whatever is playing
+  if (music.src) {
+    const { src, gain } = music, t = actx.currentTime;
+    gain.gain.setValueAtTime(gain.gain.value, t); gain.gain.linearRampToValueAtTime(0, t + .4);
+    setTimeout(() => { try { src.stop(); } catch (e) {} }, 450);
+    music.src = music.gain = null;
+  }
+  music.cur = name;
+  const buf = name && MUSIC[name];
+  if (!buf) return; // starts when decoding finishes
+  const real = TRACKS[name] / 44100, trimmed = Math.abs(buf.duration - real) < .02, lead = trimmed ? 0 : 2112 / 44100;
+  const src = actx.createBufferSource(), gain = actx.createGain(), t = actx.currentTime;
+  src.buffer = buf; src.loop = true; src.loopStart = lead; src.loopEnd = lead + real;
+  gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(1, t + .3);
+  src.connect(gain).connect(musicBus); src.start(t, lead);
+  music.src = src; music.gain = gain;
+}
+const STEP_RATES = [1, 1.12, 1.26, 1.33, 1.5, 1.68];
+const sfx = {
+  step: n => play('step', STEP_RATES[n % STEP_RATES.length], .45),
+  end: isRecord => play(isRecord ? 'record' : 'gameover', 1, .55),
+};
+
+// ---------- problems: 2022 개정 교육과정 '수와 연산' sequence, natural numbers only ----------
+const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = arr => arr[R(0, arr.length - 1)];
+// each entry is [weight, make, seconds]: the seconds are this problem type's thinking-time budget
+const weighted = list => {
+  let r = Math.random() * list.reduce((s, [w]) => s + w, 0), e = list[0];
+  for (const it of list) if ((r -= it[0]) < 0) { e = it; break; }
+  const q = e[1](); q.t = e[2]; return q;
+};
+const until = (make, ok) => { let v; for (let i = 0; i < 60; i++) if (ok(v = make())) return v; return v; };
+
+// Distractors are near misses a child could plausibly reach: off by one or two, a forgotten carry (±10),
+// a neighbouring times-table entry, or for long calculations a place-value slip (±10, ±100)
+function near(ans, extra = []) {
+  const c = [...extra, ans + 1, ans - 1, ans + 2, ans - 2];
+  if (ans >= 10) c.push(ans + 10, ans - 10);
+  return pick([...new Set(c)].filter(x => Number.isInteger(x) && x >= 0 && x !== ans));
+}
+const far = ans => pick([ans + 10, ans - 10, ans + 100, ans - 100, ans + 1, ans - 1].filter(x => x > 0 && x !== ans));
+const Q = (text, ans, wrong) => ({ text, ans: String(ans), wrong: String(wrong ?? near(ans)) });
+const add = (a, b) => Q(`${a} + ${b} = ?`, a + b);
+const sub = (a, b) => Q(`${a} − ${b} = ?`, a - b);
+// order is shuffled, except that "×1" stays on the right so 2단~9단 never shows up looking like 1단
+const mul = (a, b) => { if (Math.random() < .5 && a !== 1 && b !== 1) [a, b] = [b, a]; return Q(`${a} × ${b} = ?`, a * b, near(a * b, [a * b + a, a * b - a, a * b + b, a * b - b])); };
+const mulBig = (a, b) => Q(`${a} × ${b} = ?`, a * b, far(a * b));
+const divExact = (b, q) => Q(`${b * q} ÷ ${b} = ?`, q);
+const fmtQR = (q, r) => r ? `${q}…${r}` : String(q);
+// "몫…나머지": wrong answers shift the quotient or the remainder by one, never past the divisor
+function divR(a, b) {
+  const q = Math.floor(a / b), r = a % b;
+  const [wq, wr] = pick([[q + 1, r], [q - 1, r], [q, r + 1], [q, r - 1]].filter(([x, y]) => x > 0 && y >= 0 && y < b));
+  return { text: `${a} ÷ ${b} = ?`, ans: fmtQR(q, r), wrong: fmtQR(wq, wr) };
+}
+// mixed calculation: the trap answer is what you get by ignoring the order of operations
+const mx = (expr, ans, trap) => Q(`${expr} = ?`, ans, Number.isInteger(trap) && trap >= 0 && trap !== ans ? trap : near(ans));
+// boss problems: the same skills turned around — find the missing number, or check a division
+const missAdd = (a, b) => Math.random() < .5 ? Q(`? + ${b} = ${a + b}`, a) : Q(`${a} + ? = ${a + b}`, b);
+const missSub = (a, b) => Math.random() < .5 ? Q(`? − ${b} = ${a - b}`, a) : Q(`${a} − ? = ${a - b}`, b);
+const missMul = (a, b) => Math.random() < .5 ? Q(`? × ${b} = ${a * b}`, a, near(a, [a + 1, a - 1])) : Q(`${a} × ? = ${a * b}`, b, near(b, [b + 1, b - 1]));
+const carryPair = () => until(() => [R(15, 79), R(12, 79)], ([a, b]) => a % 10 + b % 10 >= 10 && a + b < 100);
+const borrowPair = () => until(() => [R(30, 99), R(12, 89)], ([a, b]) => b < a && b % 10 > a % 10);
+
+// digit-by-digit checks used to keep "no carry / no borrow" levels honest
+const digits = n => String(n).split('').reverse().map(Number);
+const noCarry = (a, b) => { const x = digits(a), y = digits(b); return x.every((d, i) => d + (y[i] || 0) < 10); };
+const noBorrow = (a, b) => { const x = digits(a), y = digits(b); return b <= a && y.every((d, i) => d <= (x[i] || 0)); };
+const onesCarry = (a, b) => a % 10 + b % 10 >= 10;
+const onesBorrow = (a, b) => b % 10 > a % 10;
+const twoOrOne = () => Math.random() < .4 ? R(1, 9) : R(10, 99);
+
+// 19 levels in the order of the 2022 개정 교육과정 '수와 연산'; grade is shown in the description only.
+// Every answer, every wrong choice and every left-to-right intermediate stays at 0 or above.
+const LEVELS = [
+  { short: '9까지의 덧셈', name: '9까지의 덧셈', grade: '1학년 1학기', ex: '3 + 5',
+    gen: () => weighted([[1, () => { const a = R(0, 8); return add(a, R(1, 9 - a)); }, 4]]),
+    boss: () => weighted([[1, () => { const a = R(1, 7); return missAdd(a, R(1, 8 - a)); }, 7]]) },
+  { short: '9까지의 뺄셈', name: '9까지의 뺄셈', grade: '1학년 1학기', ex: '8 − 5',
+    gen: () => weighted([[1, () => { const a = R(1, 9); return sub(a, R(0, a)); }, 4]]),
+    boss: () => weighted([[1, () => { const a = R(3, 9); return missSub(a, R(1, a - 1)); }, 7]]) },
+  { short: '(몇)±(몇)', name: '받아올림·받아내림이 없는 (몇)±(몇), 덧셈과 뺄셈 섞기', grade: '1학년 1학기', ex: '6 + 3, 7 − 4',
+    gen: () => weighted([
+      [1, () => { const a = R(1, 8); return add(a, R(1, 9 - a)); }, 4],
+      [1, () => { const a = R(2, 9); return sub(a, R(1, a)); }, 4],
+    ]),
+    boss: () => weighted([
+      [1, () => { const a = R(1, 7); return missAdd(a, R(1, 8 - a)); }, 7],
+      [1, () => { const a = R(3, 9); return missSub(a, R(1, a - 1)); }, 7],
+    ]) },
+  { short: '받아올림 (몇)±(몇)', name: '10 만들기 · 받아올림·받아내림이 있는 (몇)±(몇)', grade: '1학년 2학기', ex: '3 + ? = 10, 7 + 6, 13 − 8',
+    gen: () => weighted([
+      [1, () => { const a = R(1, 9); return Q(`${a} + ? = 10`, 10 - a); }, 4],
+      [1, () => sub(10, R(1, 9)), 4],
+      [3, () => { const a = R(2, 9); return add(a, R(11 - a, 9)); }, 5],
+      [3, () => { const a = R(11, 18); return sub(a, R(a - 9, 9)); }, 6],
+    ]),
+    boss: () => weighted([
+      [1, () => { const a = R(2, 9); return missAdd(a, R(11 - a, 9)); }, 9],
+      [1, () => { const a = R(11, 18); return missSub(a, R(a - 9, 9)); }, 9],
+    ]) },
+  { short: '두 자리 ±, 받아올림 없음', name: '받아올림·받아내림이 없는 (두 자리)±(한 자리, 두 자리)', grade: '1학년 2학기', ex: '23 + 4, 32 + 45, 68 − 23',
+    gen: () => weighted([
+      [1, () => add(...until(() => [R(10, 89), twoOrOne()], ([a, b]) => noCarry(a, b) && a + b < 100)), 6],
+      [1, () => sub(...until(() => [R(11, 99), twoOrOne()], ([a, b]) => noBorrow(a, b) && b < a)), 6],
+    ]),
+    boss: () => weighted([
+      [1, () => missAdd(...until(() => [R(10, 89), twoOrOne()], ([a, b]) => noCarry(a, b) && a + b < 100)), 9],
+      [1, () => missSub(...until(() => [R(11, 99), twoOrOne()], ([a, b]) => noBorrow(a, b) && b < a)), 9],
+    ]) },
+  { short: '두 자리 ±, 받아올림 있음', name: '받아올림·받아내림이 있는 (두 자리)±(한 자리, 두 자리)', grade: '2학년 1학기', ex: '27 + 5, 38 + 47, 52 − 17',
+    gen: () => weighted([
+      [1, () => add(...until(() => [R(11, 99), twoOrOne()], ([a, b]) => onesCarry(a, b))), 8],
+      [1, () => sub(...until(() => [R(20, 99), twoOrOne()], ([a, b]) => onesBorrow(a, b) && b < a)), 9],
+    ]),
+    boss: () => weighted([
+      [1, () => missAdd(...until(() => [R(11, 89), twoOrOne()], ([a, b]) => onesCarry(a, b))), 13],
+      [1, () => missSub(...until(() => [R(20, 99), twoOrOne()], ([a, b]) => onesBorrow(a, b) && b < a)), 13],
+    ]) },
+  { short: '세 수의 계산', name: '덧셈과 뺄셈으로 하는 세 수의 계산', grade: '1학년 2학기 ~ 2학년 1학기', ex: '4 + 6 + 3, 25 + 8 − 6',
+    gen: () => weighted([
+      [1, () => { const a = R(1, 9), c = R(1, 9); return Q(`${a} + ${10 - a} + ${c} = ?`, 10 + c); }, 6],
+      [1, () => { const a = R(5, 9), b = R(1, a - 1), c = R(1, a - b); return Q(`${a} − ${b} − ${c} = ?`, a - b - c); }, 6],
+      [1, () => { const a = R(10, 60), b = R(2, 30), c = R(2, a + b); return Q(`${a} + ${b} − ${c} = ?`, a + b - c); }, 8],
+      [1, () => { const a = R(20, 90), b = R(2, a - 1), c = R(2, 30); return Q(`${a} − ${b} + ${c} = ?`, a - b + c); }, 8],
+    ]),
+    boss: () => weighted([
+      [1, () => { const a = R(10, 60), b = R(2, 30), c = R(2, a + b); return Q(`? + ${b} − ${c} = ${a + b - c}`, a); }, 12],
+      [1, () => { const a = R(20, 90), b = R(2, a - 1), c = R(2, 30); return Q(`${a} − ? + ${c} = ${a - b + c}`, b); }, 12],
+    ]) },
+  { short: '구구 2~5단', name: '곱셈구구 2단~5단', grade: '2학년 2학기', ex: '4 × 7',
+    gen: () => weighted([[1, () => mul(R(2, 5), R(1, 9)), 4]]),
+    boss: () => weighted([[1, () => missMul(R(2, 5), R(2, 9)), 7]]) },
+  { short: '구구 6~9단', name: '곱셈구구 6단~9단', grade: '2학년 2학기', ex: '7 × 8',
+    gen: () => weighted([[1, () => mul(R(6, 9), R(1, 9)), 4]]),
+    boss: () => weighted([[1, () => missMul(R(6, 9), R(2, 9)), 7]]) },
+  { short: '구구 2~9단', name: '곱셈구구 전체 (2단~9단)', grade: '2학년 2학기', ex: '6 × 9, 3 × 7',
+    gen: () => weighted([[1, () => mul(R(2, 9), R(1, 9)), 4]]),
+    boss: () => weighted([[1, () => missMul(R(2, 9), R(2, 9)), 7]]) },
+  { short: '구구 전체 + 1단·0', name: '곱셈구구 전체 (1단과 0의 곱 포함)', grade: '2학년 2학기', ex: '1 × 6, 0 × 7, 8 × 9',
+    gen: () => weighted([
+      [6, () => mul(R(2, 9), R(1, 9)), 4],
+      [2, () => mul(1, R(0, 9)), 3],
+      [2, () => mul(0, R(0, 9)), 3],
+    ]),
+    boss: () => weighted([
+      [3, () => missMul(R(2, 9), R(2, 9)), 7],
+      [1, () => { const b = R(2, 9); return Q(`1 × ? = ${b}`, b); }, 5],
+      [1, () => { const b = R(2, 9); return Q(`? × ${b} = 0`, 0); }, 5],
+    ]) },
+  { short: '세 자리 ±', name: '세 자리 수의 덧셈과 뺄셈', grade: '3학년 1학기', ex: '467 + 285, 612 − 348',
+    gen: () => weighted([
+      [1, () => { const a = R(100, 899); const s = add(a, R(100, 999 - a)); s.wrong = String(far(+s.ans)); return s; }, 10],
+      [1, () => { const a = R(200, 999); const s = sub(a, R(100, a - 1)); s.wrong = String(far(+s.ans)); return s; }, 12],
+    ]),
+    boss: () => weighted([
+      [1, () => { const a = R(100, 499), b = R(100, 499); const s = missAdd(a, b); s.wrong = String(far(+s.ans)); return s; }, 16],
+      [1, () => { const a = R(300, 999), b = R(100, a - 100); const s = missSub(a, b); s.wrong = String(far(+s.ans)); return s; }, 16],
+    ]) },
+  { short: '나눗셈 (구구 역산)', name: '나머지가 없는 나눗셈 (곱셈구구 거꾸로)', grade: '3학년 1학기', ex: '56 ÷ 7',
+    gen: () => weighted([[1, () => divExact(R(2, 9), R(1, 9)), 5]]),
+    boss: () => weighted([
+      [1, () => { const b = R(2, 9), q = R(2, 9); return Q(`? ÷ ${b} = ${q}`, b * q, near(b * q, [b * q + b, b * q - b])); }, 8],
+      [1, () => { const b = R(2, 9), q = R(2, 9); return Q(`${b * q} ÷ ? = ${q}`, b, near(b, [b + 1, b - 1])); }, 8],
+    ]) },
+  { short: '두 자리 × 한 자리', name: '(두 자리) × (한 자리)', grade: '3학년 1학기', ex: '47 × 6',
+    gen: () => weighted([[1, () => mul(R(11, 99), R(2, 9)), 9]]),
+    // boss: the same skill with carrying in both places
+    boss: () => weighted([[1, () => mul(...until(() => [R(36, 99), R(6, 9)], ([a, b]) => (a % 10) * b >= 10)), 13]]) },
+  { short: '세 자리 × 한 자리', name: '(세 자리) × (한 자리)', grade: '3학년 2학기', ex: '274 × 7',
+    gen: () => weighted([[1, () => mulBig(R(100, 999), R(2, 9)), 14]]),
+    // boss: a zero in the tens place, the classic slip
+    boss: () => weighted([[1, () => mulBig(R(1, 9) * 100 + R(1, 9), R(3, 9)), 18]]) },
+  { short: '두 자리 × 두 자리', name: '(두 자리) × (두 자리)', grade: '3학년 2학기', ex: '24 × 36',
+    gen: () => weighted([[1, () => mulBig(R(11, 59), R(11, 39)), 20]]),
+    boss: () => weighted([[1, () => mulBig(R(41, 99), R(21, 99)), 28]]) },
+  { short: '나머지 있는 나눗셈', name: '몫이 한 자리이고 나머지가 있는 나눗셈', grade: '3학년 2학기', ex: '47 ÷ 6 = 7…5',
+    gen: () => weighted([[1, () => { const b = R(2, 9), q = R(1, 9), r = R(1, b - 1); return divR(b * q + r, b); }, 8]]),
+    // boss: checking a division by multiplying back
+    boss: () => weighted([[1, () => { const b = R(2, 9), q = R(2, 9), r = R(1, b - 1); return Q(`${b} × ${q} + ${r} = ?`, b * q + r); }, 10]]) },
+  { short: '두 자리 ÷ 한 자리', name: '(두 자리) ÷ (한 자리), 몫이 두 자리', grade: '3학년 2학기', ex: '84 ÷ 4 = 21, 75 ÷ 4 = 18…3',
+    gen: () => weighted([[1, () => divR(...until(() => { const b = R(2, 9); return [b * R(10, Math.floor(99 / b)) + R(0, b - 1), b]; }, ([a]) => a <= 99)), 12]]),
+    boss: () => weighted([[1, () => {
+      const [a, b] = until(() => { const b = R(2, 9); return [b * R(10, Math.floor(99 / b)) + R(0, b - 1), b]; }, ([a]) => a <= 99);
+      return Q(`? ÷ ${b} = ${fmtQR(Math.floor(a / b), a % b)}`, a, near(a, [a + b, a - b]));
+    }, 16]]) },
+  { short: '혼합 계산', name: '자연수의 혼합 계산 (계산 순서와 괄호)', grade: '5학년 1학기', ex: '9 + 3 × 6, (4 + 12) × 7',
+    gen: () => weighted([
+      [2, () => { const a = R(2, 30), b = R(2, 9), c = R(2, 9); return mx(`${a} + ${b} × ${c}`, a + b * c, (a + b) * c); }, 10],
+      [2, () => { const b = R(2, 9), c = R(2, 9), a = b * c + R(1, 40); return mx(`${a} − ${b} × ${c}`, a - b * c, (a - b) * c); }, 10],
+      [2, () => { const a = R(2, 20), b = R(2, 20), c = R(2, 9); return mx(`(${a} + ${b}) × ${c}`, (a + b) * c, a + b * c); }, 10],
+      [1, () => { const b = R(2, 15), a = b + R(1, 15), c = R(2, 9); return mx(`(${a} − ${b}) × ${c}`, (a - b) * c, a - b * c); }, 10],
+      [2, () => { const c = R(2, 9), q = R(2, 12), a = R(1, c * q - 1), b = c * q - a; return mx(`(${a} + ${b}) ÷ ${c}`, q, a + b / c); }, 12],
+      [2, () => { const b = R(2, 9), q = R(2, 9), c = R(2, 9); return mx(`${b * q} ÷ ${b} × ${c}`, q * c, (b * q) / (b * c)); }, 15],
+      [2, () => { const d = R(2, 9), e = R(2, 9), a = R(2, 9), b = R(Math.ceil((e + 1) / a), 9); return mx(`${a} × ${b} − ${d * e} ÷ ${d}`, a * b - e, (a * b - d * e) / d); }, 15],
+      [1, () => { const b = R(2, 20), c = R(2, 20), a = b + c + R(1, 30); return mx(`${a} − (${b} + ${c})`, a - b - c, a - b + c); }, 10],
+    ]),
+    boss: () => weighted([
+      [1, () => { const a = R(2, 30), b = R(2, 9), c = R(2, 9), d = R(1, a + b * c - 1); return mx(`${a} + ${b} × ${c} − ${d}`, a + b * c - d, (a + b) * c - d); }, 16],
+      [1, () => { const a = R(2, 15), b = R(2, 15), d = R(2, 5), k = R(1, 3), c = d * k; return mx(`(${a} + ${b}) × ${c} ÷ ${d}`, (a + b) * k, a + b * k); }, 18],
+      [1, () => { const b = R(5, 15), c = R(1, b - 1), a = R(2, 9), d = R(1, 20); return mx(`${a} × (${b} − ${c}) + ${d}`, a * (b - c) + d, a * b - c + d); }, 16],
+    ]) },
+].map((l, i) => ({ ...l, n: i + 1, id: String(i + 1) }));
+const CLIMB = { id: 'climb', name: '도전', short: '도전', desc: `10층마다 다음 레벨로 넘어가요 (Lv.1 → Lv.${LEVELS.length})` };
+const levelAt = floor => level === 'climb' ? LEVELS[Math.min(LEVELS.length - 1, Math.floor(floor / 10))] : LEVELS.find(l => l.id === level) || LEVELS[0];
+const stageAt = levelAt;
+const stageNow = () => levelAt(S.score);
+const BONUS = .3;      // gauge refilled per correct step
+const BOSS_HP = 3;
+// seconds actually allowed for the problem on screen: relaxed mode adds half again, and the climb tightens it by up to 40%
+const allowed = q => q.t * (easy ? 1.5 : 1) / (1 + Math.min(S.score, 40) * .01);
+
+// a fresh wrong answer for the parachute retry, so the second try is not just "the other button"
+function altWrong(q, old) {
+  if (isNum(q.ans)) {
+    const n = +q.ans, c = [n + 1, n - 1, n + 2, n - 2, n + 10, n - 10].filter(x => x >= 0 && String(x) !== old);
+    return String(pick(c));
+  }
+  const [qq, rr] = q.ans.split('…').map(Number);
+  const c = [[qq + 1, rr], [qq - 1, rr], [qq, rr + 1], [qq, Math.max(0, rr - 1)]].map(([a, b]) => fmtQR(a, b)).filter(v => v !== old && v !== q.ans);
+  return pick(c);
+}
+// the magnifier gives a range, never the answer: practice for estimating before calculating
+function estimate(ans) {
+  const rem = ans.includes('…'), n = parseInt(ans, 10), who = rem ? '몫은 ' : '답은 ';
+  if (n < 10) return `${who}10보다 작아요`;
+  const len = String(n).length, step = len <= 3 ? 10 ** (len - 1) : 10 ** (len - 2), lo = Math.floor(n / step) * step;
+  return `${who}${lo}~${lo + step} 사이`;
+}
+
+// ---------- flow ----------
+function reset() {
+  Object.assign(S, { path: [{ x: 0, y: 0 }], score: 0, gauge: 1, p: { x: 0, y: 0 }, face: 1, hop: null, fall: null,
+    cam: { x: 0, y: 0 }, dust: [], pops: [], shake: 0, solved: [], coinNext: false, runCoins: 0, boss: null, bossNo: 0, freeze: 0,
+    used: { lens: 0, pause: 0 }, run: { magnet: false, chute: false, sword: false }, itemUsed: false, reviving: false, reviveUsed: false, hint: '', newUnlock: 0 });
+}
+function start() {
+  if (!isOpen(level)) return;
+  initAudio(); reset();
+  // take equipped items from the bag
+  for (const k of Object.keys(equip)) if (equip[k] && inv[k] > 0) { inv[k]--; S.run[k] = true; S.itemUsed = true; }
+  for (const k of Object.keys(equip)) if (inv[k] <= 0) equip[k] = false;
+  store.set('inv', inv);
+  S.mode = 'play';
+  for (const id of ['menu', 'setup', 'over', 'shop', 'records', 'codeBox']) $(id).hidden = true;
+  $('banner').hidden = false; $('itemBar').hidden = false;
+  play('start', 1, .6); next(); hud(); setTrack('main');
+}
+function next() {
+  const boss = S.boss && S.boss.hp > 0;
+  S.q = boss ? S.boss.stage.boss() : stageNow().gen();
+  S.correct = Math.random() < .5 ? 'L' : 'R';
+  S.choice = { L: S.correct === 'L' ? S.q.ans : S.q.wrong, R: S.correct === 'R' ? S.q.ans : S.q.wrong };
+  S.coinNext = !boss && Math.random() < (S.run.magnet ? .2 : .1);
+  S.qStart = S.time; S.hint = '';
+  showProblem();
+}
+function showProblem() {
+  const boss = S.boss && S.boss.hp > 0, st = boss ? S.boss.stage : stageNow();
+  $('banner').classList.toggle('boss', !!boss);
+  $('stageTag').textContent = boss ? `BOSS · ${S.boss.kind.name}` : `${level === 'climb' ? '도전 · ' : ''}Lv.${st.n} ${st.short}`;
+  $('bestTag').hidden = !!boss; $('bestTag').textContent = `BEST ${bestNow()}층`;
+  $('bossHp').hidden = !boss;
+  if (boss) $('bossHp').innerHTML = Array.from({ length: S.boss.max }, (_, i) => `<i class="${i < S.boss.hp ? '' : 'off'}"></i>`).join('');
+  setProb(S.q.text);
+  $('hintLine').hidden = !S.hint; $('hintLine').textContent = S.hint;
+  $('padLn').textContent = S.choice.L; $('padRn').textContent = S.choice.R;
+  syncItems();
+}
+// shrink long expressions such as "(12 + 7) × 4 ÷ 2 = ?" so they stay on one line
+function setProb(t) {
+  const el = $('prob'); el.textContent = t; el.style.fontSize = '';
+  if (el.scrollWidth > el.clientWidth) el.style.fontSize = parseFloat(getComputedStyle(el).fontSize) * el.clientWidth / el.scrollWidth * .96 + 'px';
+}
+function hud() { $('score').textContent = S.score; $('coins').textContent = coins; }
+function gainCoins(n, x, y, label) {
+  coins += n; S.runCoins += n; store.set('coins', coins); hud();
+  play('coin', 1, .55);
+  S.pops.push({ x, y, text: label || `+${n}`, life: 1.2, coin: true });
+}
+
+function answer(side) {
+  if (S.mode !== 'play' || !$('settings').hidden) return;
+  const pad = side === 'L' ? $('padL') : $('padR');
+  pad.classList.add('hit'); setTimeout(() => pad.classList.remove('hit'), 90);
+  const dx = side === 'L' ? -1 : 1, to = { x: S.p.x + dx, y: S.p.y + 1 };
+  S.face = dx;
+  if (side !== S.correct) { burst(to.x, to.y, 24, [PAL.brown, PAL.tan, PAL.ink]); return fail('wrong', to); }
+
+  const spent = S.time - S.qStart, fast = spent < allowed(S.q) * .3;
+  S.solved.push({ text: S.q.text.replace('?', S.q.ans), secs: spent });
+  S.hop = { from: { ...S.p }, to, t: 0 };
+  S.p = to; S.path.push(to);
+  S.gauge = Math.min(1, S.gauge + BONUS);
+  S.score++; S.reviving = false;
+  // ten floors on a level opens the next one; in climb mode each ten floors clears a level
+  if (level === 'climb') unlockTo(Math.floor(S.score / 10) + 1);
+  else if (S.score >= 10) unlockTo(+level + 1);
+  burst(to.x, to.y, 5, [PAL.paper, PAL.tan]);
+  if (S.coinNext) gainCoins(1, to.x, to.y + 2.2);
+  else if (fast && !S.boss && Math.random() < .08) gainCoins(1, to.x, to.y + 2.2, '+1 빠르다!');
+
+  if (S.boss && S.boss.hp > 0) {
+    S.boss.hp--; S.boss.hit = .3; play('hit', 1, .55);
+    if (S.boss.hp <= 0) {
+      S.boss.dead = 0.001; play('bossdown', 1, .6); setTrack('main');
+      const loot = R(3, 5);
+      setTimeout(() => gainCoins(loot, S.p.x, S.p.y + 2.2, `보물 +${loot}`), 350);
+      burst(to.x, to.y, 18, [PAL.yellow, PAL.gold, PAL.paper]);
+    }
+  } else if (S.score % 10 === 0) {
+    // every tenth floor: a flag, then a boss guards the next stretch
+    S.boss = { hp: S.run.sword ? BOSS_HP - 1 : BOSS_HP, max: BOSS_HP, kind: BOSSES[S.bossNo++ % BOSSES.length], stage: stageAt(S.score - 1), t: 0, hit: 0, dead: 0 };
+    play('bossin', 1, .6); setTrack('boss');
+    S.pops.push({ x: to.x, y: to.y + 2.2, text: 'BOSS!', life: 1.2 });
+    burst(to.x, to.y, 16, [PAL.yellow, PAL.paper, PAL.red]);
+  } else sfx.step(S.score);
+  next(); hud();
+}
+function fail(reason, to) {
+  S.mode = 'fall'; S.reason = reason; S.shake = reduceMotion ? 0 : .3;
+  S.fall = { x: S.p.x, y: S.p.y, vx: to ? (to.x - S.p.x) * 2.2 : 0, vy: to ? 6 : 1.5, t: 0 };
+  play('wrong', 1, .7); syncItems(); setTrack(null);
+  // with a parachute the answer stays hidden, because the same problem comes back
+  S.reviving = S.run.chute && !S.reviveUsed;
+  if (!S.reviving) { setProb(S.q.text.replace('?', S.q.ans)); $('hintLine').hidden = true; }
+}
+function revive() {
+  S.reviveUsed = true; S.fall = null; S.mode = 'play'; S.gauge = Math.max(S.gauge, .6);
+  const old = S.choice[S.correct === 'L' ? 'R' : 'L'];
+  S.q.wrong = altWrong(S.q, old);
+  S.correct = Math.random() < .5 ? 'L' : 'R';
+  S.choice = { L: S.correct === 'L' ? S.q.ans : S.q.wrong, R: S.correct === 'R' ? S.q.ans : S.q.wrong };
+  S.qStart = S.time; S.hint = '낙하산! 같은 문제를 다시 풀어요';
+  S.pops.push({ x: S.p.x, y: S.p.y + 2.2, text: '낙하산!', life: 1.2 });
+  play('item', 1, .6); showProblem(); setTrack(S.boss && S.boss.hp > 0 ? 'boss' : 'main');
+}
+function showOver() {
+  S.mode = 'over'; $('itemBar').hidden = true;
+  // records for this level (and relaxed mode separately): best ten plus the last twenty runs
+  const rec = loadRec(), prevBest = (rec.top[0] || { f: 0 }).f;
+  const entry = { f: S.score, d: new Date().toISOString().slice(0, 10), i: S.itemUsed };
+  let rank = 0;
+  if (S.score > 0) {
+    rec.top.push(entry); rec.top.sort((a, b) => b.f - a.f);
+    rank = rec.top.indexOf(entry) + 1; rec.top = rec.top.slice(0, 10);
+    if (rank > 10) rank = 0;
+    rec.recent = [...rec.recent, S.score].slice(-20);
+    store.set('rec-' + modeKey(), rec);
+  }
+  const isNew = S.score > prevBest && S.score > 0;
+  hud(); sfx.end(isNew);
+  $('overTitle').textContent = S.score === 0 ? 'GAME OVER' : `${S.score}층에서 추락!`;
+  $('overReason').textContent = S.reason === 'time' ? '시간 초과! 정답은' : '오답! 정답은';
+  $('overAnswer').textContent = S.q.text.replace('?', S.q.ans);
+  $('overRank').textContent = isNew ? '★ NEW RECORD ★' : rank ? `내 기록 ${rank}위 · BEST ${rec.top[0].f}층` : `BEST ${prevBest}층`;
+  $('overCoins').hidden = !S.runCoins; $('overCoins').textContent = `코인 +${S.runCoins}`;
+  $('overUnlock').hidden = !S.newUnlock;
+  if (S.newUnlock) $('overUnlock').textContent = `새 레벨이 열렸어요: Lv.${S.newUnlock} ${LEVELS[S.newUnlock - 1].short}`;
+  // the three problems that took longest this run, worth another look
+  const slow = [...S.solved].sort((a, b) => b.secs - a.secs).slice(0, 3);
+  $('slowWrap').hidden = !slow.length;
+  $('slowList').innerHTML = '';
+  for (const s of slow) {
+    const li = document.createElement('div'); li.className = 'li';
+    li.innerHTML = '<span></span><span class="sub"></span>';
+    li.children[0].textContent = s.text; li.children[1].textContent = `${s.secs.toFixed(1)}초`;
+    $('slowList').appendChild(li);
+  }
+  $('over').hidden = false; $('retryBtn').focus();
+}
+function toMenu(screen = 'menu') {
+  S.mode = 'menu'; reset();
+  for (const id of ['over', 'shop', 'records', 'setup', 'menu']) $(id).hidden = true;
+  $(screen).hidden = false; $('banner').hidden = true; $('itemBar').hidden = true;
+  $('padLn').textContent = '?'; $('padRn').textContent = '?';
+  S.choice = { L: '?', R: '?' }; hud(); setTrack('title');
+}
+// two-step setup: (1) character and level, (2) relaxed mode and items, with buying right there
+function openSetup(step = 1) {
+  toMenu('setup');
+  $('step1').hidden = step !== 1; $('step2').hidden = step !== 2;
+  if (step === 1) { buildHeroes(); buildLevels(); syncLevel(); $('nextBtn').focus(); }
+  else { buildPrep(); $('goBtn').focus(); }
+}
+
+// ---------- in-run items ----------
+const LIMIT = { lens: 2, pause: 1 };
+function syncItems() {
+  for (const k of ['lens', 'pause']) {
+    $(k + 'N').textContent = inv[k];
+    $(k === 'lens' ? 'useLens' : 'usePause').disabled = S.mode !== 'play' || inv[k] <= 0 || S.used[k] >= LIMIT[k] || (k === 'lens' && S.hint.startsWith('어림'));
+  }
+}
+function useItem(k) {
+  if (S.mode !== 'play' || inv[k] <= 0 || S.used[k] >= LIMIT[k]) return play('nope', 1, .5);
+  if (k === 'lens') { if (S.hint.startsWith('어림')) return; S.hint = '어림: ' + estimate(S.q.ans); }
+  if (k === 'pause') S.freeze = 5;
+  inv[k]--; S.used[k]++; S.itemUsed = true; store.set('inv', inv);
+  play('item', 1, .6); showProblem();
+}
+
+// ---------- effects ----------
+function burst(x, y, n, colors) {
+  if (reduceMotion) return;
+  for (let i = 0; i < n; i++) S.dust.push({ x: x + (Math.random() - .5) * .8, y: y - .3 + Math.random() * .3,
+    vx: (Math.random() - .5) * 3, vy: Math.random() * 3 + (n > 10 ? 1 : 0), life: .6 + Math.random() * .5,
+    s: Math.random() < .35 ? 2 : 1, c: colors[R(0, colors.length - 1)] });
+}
+
+// ---------- scenery ----------
+const STARS = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), tw: Math.random() < .2 }));
+const CLOUDS = Array.from({ length: 10 }, (_, i) => ({ wx: Math.random() * 300, wy: 5 + i * 5 + Math.random() * 4, sp: 2 + Math.random() * 4, big: Math.random() < .5 }));
+// sky keyframes by floor: [floor, top rgb, horizon rgb]; the first three are re-tinted from the Kenney background sheet once it loads
+const SKY = [[0, [205, 240, 245], [140, 230, 170]], [25, [95, 185, 240], [205, 240, 245]], [45, [126, 37, 83], [250, 170, 90]],
+  [75, [16, 22, 52], [45, 48, 90]], [110, [0, 0, 0], [11, 16, 36]]];
+const lerp = (a, b, t) => a + (b - a) * t;
+function skyAt(alt) {
+  let i = 0; while (i < SKY.length - 2 && alt > SKY[i + 1][0]) i++;
+  const [a0, t0, b0] = SKY[i], [a1, t1, b1] = SKY[i + 1], k = Math.max(0, Math.min(1, (alt - a0) / (a1 - a0)));
+  return [t0.map((v, j) => lerp(v, t1[j], k)), b0.map((v, j) => lerp(v, b1[j], k))];
+}
+const material = floor => floor < 20 ? T.grass : floor < 50 ? T.sand : T.snow;
+
+// ---------- drawing helpers ----------
+const SX = 24, SY = 16;
+let ANCHOR = .62;
+const scr = (x, y) => [Math.round(LW / 2 + (x - S.cam.x) * SX), Math.round(LH * ANCHOR - (y - S.cam.y) * SY)];
+const rect = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
+const tile = (id, x, y) => ctx.drawImage(SHEET.tiles, (id % 20) * TS, Math.floor(id / 20) * TS, TS, TS, Math.round(x), Math.round(y), TS, TS);
+function text(str, x, y, color, align = 'center') {
+  ctx.font = FONT; ctx.textAlign = align; ctx.textBaseline = 'bottom';
+  ctx.fillStyle = PAL.ink;
+  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) ctx.fillText(str, x + dx, y + dy);
+  ctx.fillStyle = color; ctx.fillText(str, x, y);
+}
+// numbers built from the tilesheet's own pixel digits; neighbouring outlines overlap by one pixel
+function num(n, cx, bottom) {
+  const ds = String(n).split('').map(Number), w = ds.reduce((s, d) => s + DIG[d].w - 1, 1);
+  let x = Math.round(cx - w / 2);
+  for (const d of ds) {
+    const g = DIG[d], id = T.digit0 + d;
+    ctx.drawImage(SHEET.tiles, (id % 20) * TS + g.x0, Math.floor(id / 20) * TS + g.y0, g.w, g.h, x, Math.round(bottom - g.h), g.w, g.h);
+    x += g.w - 1;
+  }
+}
+function drawStair(x, y, alpha = 1) {
+  const [cx, cy] = scr(x, y);
+  if (cy < -TS || cy > LH + TS) return;
+  ctx.globalAlpha = alpha; tile(material(y), cx - TS / 2, cy); ctx.globalAlpha = 1;
+}
+// answers are pure digits (tile font) or "몫…나머지" / "?" (Galmuri); long ones are pushed outward so they clear the climber
+const isNum = v => /^\d+$/.test(v);
+function labelW(v) {
+  if (isNum(v)) return v.split('').reduce((s, d) => s + DIG[+d].w - 1, 1);
+  ctx.font = FONT; return Math.ceil(ctx.measureText(v).width) + 2;
+}
+function label(v, dir, cy, color) {
+  const [pcx] = scr(S.p.x, S.p.y), lx = pcx + dir * Math.max(SX, 13 + labelW(v) / 2);
+  if (isNum(v)) num(v, lx, cy); else text(v, lx, cy + 1, color);
+}
+function drawGhost(x, y) {
+  const [cx, cy] = scr(x, y), x0 = cx - TS / 2, phase = Math.floor(S.time * 6) % 4;
+  drawStair(x, y, .35);
+  for (let i = 0; i < TS; i++) {
+    if ((i + phase) % 4 < 2) { rect(x0 + i, cy, 1, 1, PAL.paper); rect(x0 + TS - 1 - i, cy + TS - 1, 1, 1, PAL.paper); }
+    if ((i + phase) % 4 < 2) { rect(x0, cy + TS - 1 - i, 1, 1, PAL.paper); rect(x0 + TS - 1, cy + i, 1, 1, PAL.paper); }
+  }
+}
+function drawFlag(x, y, n) {
+  const [cx, cy] = scr(x, y);
+  tile(Math.floor(S.time * 3) % 2 ? T.flagA : T.flagB, cx - TS / 2 - 6, cy - TS);
+  // label sits left of the flag unless that would run off the screen
+  ctx.font = FONT;
+  const w = ctx.measureText(`${n}층`).width, lx = cx - TS / 2 - 8;
+  if (lx - w < 2) text(`${n}층`, cx + TS / 2 + 3, cy + 12, PAL.yellow, 'left');
+  else text(`${n}층`, lx, cy + 12, PAL.yellow, 'right');
+}
+function sprite(id, cx, cy, scale = 1, flipX = 1, flipY = 1) {
+  ctx.save(); ctx.translate(Math.round(cx), Math.round(cy)); ctx.scale(scale * flipX, scale * flipY);
+  ctx.drawImage(SHEET.chars, (id % 9) * CS, Math.floor(id / 9) * CS, CS, CS, -CS / 2, -CS / 2, CS, CS);
+  ctx.restore();
+}
+function drawPlayer(x, y, frame, flipY) {
+  const [cx, cy] = scr(x, y);
+  sprite(HEROES[hero].f[frame], cx, cy - CS / 2 + 1, 1, -S.face, flipY ? -1 : 1);
+}
+function drawBoss() {
+  const b = S.boss; if (!b) return;
+  const top = ($('banner').hidden ? 0 : $('banner').offsetHeight / P), sc = LH - top > 150 ? 2 : 1;
+  let x = LW - 14 - 12 * sc, y = top + 10 + 12 * sc + Math.round(Math.sin(S.time * 3) * 2);
+  if (b.dead) { y += b.dead * b.dead * 120; x += b.dead * 30; }
+  if (y > LH + 40) { S.boss = null; if (S.mode === 'play') showProblem(); return; }
+  if (b.hit > 0 && Math.floor(b.hit * 20) % 2) return; // blink when hit
+  const f = b.kind.f[Math.floor(S.time * 4) % b.kind.f.length];
+  sprite(f, x + (b.hit > 0 ? R(-2, 2) : 0), y, sc, 1, b.dead ? -1 : 1);
+}
+function drawCloud(x, y, big) {
+  const w = big ? 22 : 14;
+  rect(x + 2, y, w - 4, 1, PAL.paper); rect(x, y + 1, w, 3, PAL.paper); rect(x + 1, y + 4, w - 2, 1, '#cfe3ea');
+  rect(x + 4, y - 3, big ? 8 : 5, 3, PAL.paper); if (big) rect(x + 12, y - 2, 6, 2, PAL.paper);
+}
+function drawScene() {
+  const alt = S.cam.y, [top, bot] = skyAt(alt);
+  const bands = 8;
+  for (let i = 0; i < bands; i++) {
+    const k = i / (bands - 1), col = top.map((v, j) => Math.round(lerp(v, bot[j], k)));
+    rect(0, Math.floor(LH * i / bands), LW, Math.ceil(LH / bands) + 1, `rgb(${col})`);
+  }
+  const sa = Math.max(0, Math.min(1, (alt - 55) / 30));
+  if (sa > 0) {
+    ctx.globalAlpha = sa;
+    for (const s of STARS) {
+      if (s.tw && Math.floor(S.time * 2 + s.x * 10) % 3 === 0) continue;
+      rect(s.x * LW, ((s.y * LH * 1.5 + alt * 1.2) % (LH * 1.5)) - LH * .25, 1, 1, PAL.paper);
+    }
+    ctx.globalAlpha = 1;
+  }
+  const ca = Math.max(0, Math.min(1, 1 - (alt - 45) / 20));
+  if (ca > 0) {
+    ctx.globalAlpha = ca;
+    for (const c of CLOUDS) {
+      const x = ((c.wx + S.time * c.sp - S.cam.x * SX * .3) % (LW + 60) + LW + 60) % (LW + 60) - 30;
+      const y = LH * ANCHOR - (c.wy - S.cam.y) * SY * .45;
+      if (y > -10 && y < LH + 10) drawCloud(Math.round(x), Math.round(y), c.big);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // Kenney green hills at ground level, sinking with parallax as you climb
+  const ground = Math.round(LH * ANCHOR + TS + S.cam.y * SY * .5);
+  if (ground - BS < LH) {
+    const shift = ((Math.round(-S.cam.x * SX * .4) % (BS * 2)) + BS * 2) % (BS * 2);
+    for (let x = shift - BS * 2; x < LW; x += BS) {
+      const col = 6 + (((x - shift) / BS) & 1);
+      ctx.drawImage(SHEET.bgs, col * BS, BS, BS, BS, x, ground - BS, BS, BS);
+      for (let y = ground; y < LH; y += BS) ctx.drawImage(SHEET.bgs, col * BS, BS * 2, BS, BS, x, y, BS, BS);
+    }
+  }
+}
+function draw() {
+  if (!ready) { rect(0, 0, LW, LH, '#2b2f4f'); return; }
+  // keep the climber in the open area below the problem sign
+  const top = $('banner').hidden ? 0 : $('banner').offsetHeight / P;
+  ANCHOR = Math.min(.72, Math.max(.62, (top + (LH - top) * .6) / LH));
+  let ox = 0, oy = 0;
+  if (S.shake > 0) { ox = R(-2, 2); oy = R(-2, 2); }
+  ctx.save(); ctx.translate(ox, oy);
+  drawScene();
+  const from = Math.max(0, S.path.length - 40);
+  for (let i = from; i < S.path.length; i++) drawStair(S.path[i].x, S.path[i].y);
+  for (let i = Math.max(10, from - from % 10); i < S.path.length; i += 10) drawFlag(S.path[i].x, S.path[i].y, i);
+  // the two candidate steps; the answer is shown only once the run is really over
+  const ny = S.p.y + 1, reveal = (S.mode === 'fall' && !S.reviving) || S.mode === 'over';
+  for (const side of ['L', 'R']) {
+    const dir = side === 'L' ? -1 : 1, x = S.p.x + dir, [cx, cy] = scr(x, ny), v = String(S.choice[side]);
+    if (!reveal) {
+      drawGhost(x, ny); label(v, dir, cy + 13, PAL.paper);
+      if (S.coinNext && S.mode === 'play') tile(Math.floor(S.time * 6) % 2 ? T.coinA : T.coinB, cx - TS / 2, cy - TS - 2);
+    } else if (side === S.correct) { drawStair(x, ny); label(S.q.ans, dir, cy - 3, PAL.green); }
+    else if (S.reason === 'time') { drawGhost(x, ny); label(v, dir, cy + 13, PAL.silver); }
+  }
+  // climber
+  if (S.fall) drawPlayer(S.fall.x, S.fall.y, 1, S.fall.t > .25);
+  else if (S.hop) {
+    const t = S.hop.t, h = S.hop;
+    drawPlayer(h.from.x + (h.to.x - h.from.x) * t, h.from.y + (h.to.y - h.from.y) * t + Math.sin(Math.PI * t) * .4, 1);
+  } else drawPlayer(S.p.x, S.p.y, S.mode === 'menu' && Math.floor(S.time * 2) % 2 ? 1 : 0);
+  drawBoss();
+  for (const d of S.dust) { const [x, y] = scr(d.x, d.y); rect(x, y, d.s, d.s, d.c); }
+  for (const p of S.pops) {
+    const [x, y] = scr(p.x, p.y + (1.2 - p.life) * .8);
+    if (p.life > .4 || Math.floor(p.life * 10) % 2) {
+      if (p.coin) tile(Math.floor(S.time * 6) % 2 ? T.coinA : T.coinB, x - TS / 2, y - 26);
+      text(p.text, x, y, p.coin ? PAL.gold : PAL.yellow);
+    }
+  }
+  ctx.restore();
+}
+
+// ---------- loop ----------
+let last = performance.now();
+function update(dt) {
+  if (!$('settings').hidden && S.mode === 'play') return; // paused while settings are open
+  S.time += dt;
+  if (S.mode === 'play') {
+    if (S.freeze > 0) S.freeze -= dt;
+    else S.gauge -= BONUS / allowed(S.q) * dt;
+    if (S.gauge < .25 && S.freeze <= 0 && (S.tick -= dt) <= 0) { play('tick', 1, .5); S.tick = .45; }
+    if (S.gauge <= 0) { S.gauge = 0; fail('time', null); }
+  }
+  if (S.hop && (S.hop.t += dt / .12) >= 1) S.hop = null;
+  if (S.fall) {
+    const f = S.fall;
+    f.t += dt; f.vy -= 28 * dt; f.y += f.vy * dt; f.x += f.vx * dt;
+    if (S.mode === 'fall' && f.t > (S.reviving ? .8 : 1.1)) S.reviving ? revive() : showOver();
+  }
+  if (S.boss) { S.boss.hit = Math.max(0, S.boss.hit - dt); if (S.boss.dead) S.boss.dead += dt; }
+  S.shake = Math.max(0, S.shake - dt);
+  for (const d of S.dust) { d.x += d.vx * dt; d.y += d.vy * dt; d.vy -= 9 * dt; d.life -= dt; }
+  S.dust = S.dust.filter(d => d.life > 0);
+  for (const p of S.pops) p.life -= dt;
+  S.pops = S.pops.filter(p => p.life > 0);
+  if (!S.fall) {
+    const k = Math.min(1, dt * 8);
+    S.cam.x += (S.p.x - S.cam.x) * k; S.cam.y += (S.p.y - S.cam.y) * k;
+  }
+  $('gaugeFill').style.width = (Math.round(S.gauge * 20) * 5) + '%';
+  const g = $('gauge'), frozen = S.freeze > 0 && S.mode === 'play';
+  g.classList.toggle('frozen', frozen);
+  g.classList.toggle('low', !frozen && S.gauge < .25); g.classList.toggle('mid', !frozen && S.gauge >= .25 && S.gauge < .5);
+}
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  update(dt); draw(); requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- menu: characters, grades, relaxed mode, items to bring ----------
+function heroFace(el, id, k) {
+  el.style.backgroundImage = `url(${ASSETS.chars})`;
+  el.style.backgroundSize = `${SHEET.chars.width * k}px ${SHEET.chars.height * k}px`;
+  el.style.backgroundPosition = `${-(id % 9) * CS * k}px ${-Math.floor(id / 9) * CS * k}px`;
+}
+function buildHeroes() {
+  const wrap = $('heroes'); wrap.innerHTML = '';
+  HEROES.forEach((h, i) => {
+    const b = document.createElement('button'), have = owned.includes(i);
+    b.className = 'hero' + (have ? '' : ' locked'); b.id = 'hero-' + i;
+    b.setAttribute('aria-label', have ? h.name + ' 캐릭터' : `${h.name} 캐릭터, 잠김, 코인 ${h.price}개`);
+    b.setAttribute('aria-pressed', String(i === hero));
+    heroFace(b, h.f[0], 2);
+    if (!have) { const l = document.createElement('span'); l.className = 'lock'; l.textContent = `잠김 ${h.price}`; b.appendChild(l); }
+    b.addEventListener('click', () => {
+      initAudio();
+      if (!owned.includes(i)) return openShop();
+      hero = i; store.set('hero', i); play('toggle', 1, .5); buildHeroes();
+    });
+    wrap.appendChild(b);
+  });
+}
+function buildLevels() {
+  const wrap = $('levels'); wrap.innerHTML = '';
+  for (const l of [...LEVELS, CLIMB]) {
+    const b = document.createElement('button'), open = isOpen(l.id), climb = l === CLIMB, n = climb ? 0 : stars(l.id);
+    b.className = 'lv' + (climb ? ' climb' : '') + (open ? '' : ' locked'); b.id = 'lv-' + l.id;
+    b.innerHTML = '<b></b><span class="st"></span>';
+    b.children[0].textContent = climb ? '★ 도전' : l.n;
+    b.children[1].textContent = climb ? `BEST ${bestAny('climb')}층` : open ? '★'.repeat(n) + '☆'.repeat(3 - n) : '잠김';
+    b.setAttribute('aria-label', climb ? '도전 모드' : `레벨 ${l.n} ${l.name}${open ? `, 별 ${n}개` : ', 잠김'}`);
+    b.addEventListener('click', () => { level = l.id; store.set('level', level); initAudio(); play('toggle', 1, .5); syncLevel(); });
+    wrap.appendChild(b);
+  }
+}
+function syncLevel() {
+  if (level !== 'climb' && !LEVELS.find(l => l.id === level)) level = '1';
+  const l = level === 'climb' ? CLIMB : LEVELS.find(x => x.id === level), open = isOpen(level);
+  document.querySelectorAll('#levels .lv').forEach(b => b.setAttribute('aria-pressed', String(b.id === 'lv-' + level)));
+  $('lvName').textContent = level === 'climb' ? '★ 도전 모드' : `Lv.${l.n} ${l.name}`;
+  $('lvMeta').textContent = level === 'climb' ? l.desc : `${l.grade} 수준 · 예: ${l.ex}`;
+  $('lvLock').textContent = !open ? `Lv.${l.n - 1}에서 10층에 오르면 열려요` : level === 'climb' ? '' : '별: ★ 10층 · ★★ 20층 · ★★★ 30층';
+  $('nextBtn').disabled = !open;
+  $('easyBtn').setAttribute('aria-pressed', String(easy));
+  hud();
+}
+// 12×12 pixel icons for the items, in the same outlined style as the Kenney sheet
+const ICON_PAL = { k: '#2c2b49', w: '#ffffff', s: '#c2c3c7', b: '#8fd6ff', r: '#e4573d', y: '#f2b63d', o: '#9a5b3c' };
+const ICON_ART = {
+  pause: ['....kkkk....', '..kkbbbbkk..', '.kbwwwwwwbk.', '.kwwwkwwwwk.', 'kbwwwkwwwwbk', 'kbwwwkwwwwbk',
+          'kbwwwkkkwwbk', 'kbwwwwwwwwbk', '.kwwwwwwwwk.', '.kbwwwwwwbk.', '..kkbbbbkk..', '....kkkk....'],
+  lens:  ['..kkkk......', '.kbbbbk.....', 'kbwbbbbk....', 'kbwbbbbk....', 'kbbbbbbk....', 'kbbbbbbk....',
+          '.kbbbbk.....', '..kkkkok....', '.......kok..', '........kok.', '.........kok', '..........k.'],
+  magnet:['.kkkk..kkkk.', '.kssk..kssk.', '.kssk..kssk.', '.kkkk..kkkk.', '.krrk..krrk.', '.krrk..krrk.',
+          '.krrk..krrk.', '.krrkkkkrrk.', '.krrrrrrrrk.', '..krrrrrrk..', '...kkkkkk...', '............'],
+  chute: ['...kkkkkk...', '.kkrrwwrrkk.', 'krrrrwwrrrrk', 'kwwrrwwrrwwk', 'kkkkkkkkkkkk', '.k...kk...k.',
+          '..k..kk..k..', '...k.kk.k...', '....kkkk....', '....kyyk....', '....kyyk....', '....kkkk....'],
+  sword: ['.........kkk', '........kwsk', '.......kwsk.', '......kwsk..', '.....kwsk...', '..k.kwsk....',
+          '..kkwsk.....', '...kyk......', '..kykkk.....', '.kok..k.....', 'kok.........', 'kk..........'],
+  gear:  ['....kkkk....', '.kk.kssk.kk.', '.kskksskksk.', '..ksssssk...', 'kkksskkssk.k', 'ksssk..ksssk',
+          'ksssk..ksssk', 'kkksskkssk.k', '..kssssssk..', '.kskksskksk.', '.kk.kssk.kk.', '....kkkk....'],
+};
+const ICON = {};
+for (const [k, rows] of Object.entries(ICON_ART)) {
+  const c = document.createElement('canvas'); c.width = c.height = 12;
+  const x = c.getContext('2d');
+  rows.forEach((row, y) => [...row].forEach((ch, i) => { if (ch !== '.') { x.fillStyle = ICON_PAL[ch]; x.fillRect(i, y, 1, 1); } }));
+  ICON[k] = c.toDataURL();
+}
+const icon = (k, cls = 'ico') => { const i = document.createElement('i'); i.className = cls; i.style.backgroundImage = `url(${ICON[k]})`; return i; };
+document.querySelectorAll('[data-ico]').forEach(el => { el.style.backgroundImage = `url(${ICON[el.dataset.ico]})`; });
+
+const ITEMS = {
+  pause: { name: '멈춤 시계', desc: '게임 중에 써요. 5초 동안 시간 게이지가 줄지 않아요. 한 판에 1번.', price: 8 },
+  lens: { name: '어림 돋보기', desc: '게임 중에 써요. 답이 어느 범위인지 알려줘요 (예: 1000~1100 사이). 한 판에 2번.', price: 6 },
+  magnet: { name: '자석', desc: '시작할 때 가져가요. 그 판에서 코인이 나올 확률이 2배가 돼요.', price: 10 },
+  chute: { name: '낙하산', desc: '시작할 때 가져가요. 한 번 떨어져도 같은 문제를 다시 풀면 이어서 올라요.', price: 25 },
+  sword: { name: '보스 칼', desc: '시작할 때 가져가요. 그 판의 보스 체력이 1칸 줄어요.', price: 12 },
+};
+function purchase(price, onBuy) {
+  if (coins < price) return play('nope', 1, .5);
+  coins -= price; store.set('coins', coins); onBuy(); play('buy', 1, .6); hud();
+}
+const syncEquip = () => { for (const k of Object.keys(equip)) if (inv[k] <= 0) equip[k] = false; };
+function buildPrep() {
+  syncEquip();
+  const l = level === 'climb' ? CLIMB : LEVELS.find(x => x.id === level);
+  heroFace($('sumFace'), HEROES[hero].f[0], 2);
+  $('sumLevel').textContent = level === 'climb' ? '★ 도전 모드' : `Lv.${l.n} ${l.short}`;
+  $('sumMeta').textContent = level === 'climb' ? l.desc : `${l.grade} 수준 · 예: ${l.ex}`;
+  $('easyBtn').setAttribute('aria-pressed', String(easy));
+  $('prepCoins').textContent = coins;
+  const wrap = $('prep'); wrap.innerHTML = '';
+  for (const [k, it] of Object.entries(ITEMS)) {
+    const bring = k in equip, r = document.createElement('div'); r.className = 'prow';
+    r.innerHTML = '<div class="pn"></div><div class="pctl"></div>';
+    r.querySelector('.pn').append(icon(k), it.name);
+    const sm = document.createElement('small'); sm.textContent = `보유 ${inv[k]}`; r.querySelector('.pn').appendChild(sm);
+    const ctl = r.querySelector('.pctl');
+    if (bring) {
+      const t = document.createElement('button'); t.className = 'take'; t.id = 'take-' + k;
+      t.textContent = equip[k] ? '가져가요' : '가져가기'; t.disabled = inv[k] <= 0;
+      t.setAttribute('aria-pressed', String(equip[k])); t.setAttribute('aria-label', `${it.name} 가져가기`);
+      t.addEventListener('click', () => { equip[k] = !equip[k]; initAudio(); play('toggle', 1, .5); buildPrep(); });
+      ctl.appendChild(t);
+    }
+    const b = document.createElement('button'); b.className = 'buy'; b.id = 'buy-' + k;
+    b.innerHTML = '<i class="coin-ico"></i><span></span>'; b.querySelector('span').textContent = it.price;
+    b.disabled = coins < it.price; b.setAttribute('aria-label', `${it.name} 사기, 코인 ${it.price}개`);
+    // buying a bring-along item here also packs it for this run
+    b.addEventListener('click', () => { initAudio(); purchase(it.price, () => { inv[k]++; store.set('inv', inv); if (bring) equip[k] = true; }); buildPrep(); });
+    ctl.appendChild(b);
+    wrap.appendChild(r);
+  }
+}
+
+// ---------- shop ----------
+function openShop() { $('shop').hidden = false; buildShop(); }
+function buildShop() {
+  $('shopCoins').textContent = coins;
+  const list = $('shopList'); list.innerHTML = '';
+  const row = (name, sub, desc, price, can, onBuy, faceId, iconKey) => {
+    const r = document.createElement('div'); r.className = 'srow';
+    r.innerHTML = '<div class="sname"></div><div class="sdesc"></div><button class="buy"><i class="coin-ico"></i><span></span></button>';
+    const n = r.querySelector('.sname');
+    if (faceId != null) { const f = document.createElement('i'); f.className = 'face'; heroFace(f, faceId, 4 / 3); n.appendChild(f); }
+    if (iconKey) n.appendChild(icon(iconKey));
+    n.appendChild(document.createTextNode(name));
+    if (sub) { const s = document.createElement('small'); s.textContent = sub; n.appendChild(s); }
+    r.querySelector('.sdesc').textContent = desc;
+    const b = r.querySelector('.buy'); b.querySelector('span').textContent = price;
+    b.disabled = !can; b.setAttribute('aria-label', `${name} 사기, 코인 ${price}개`);
+    b.addEventListener('click', () => { purchase(price, onBuy); buildShop(); syncEquip(); buildHeroes(); if (!$('step2').hidden) buildPrep(); });
+    list.appendChild(r);
+  };
+  for (const [k, it] of Object.entries(ITEMS)) row(it.name, `보유 ${inv[k]}`, it.desc, it.price, coins >= it.price, () => { inv[k]++; store.set('inv', inv); }, null, k);
+  HEROES.forEach((h, i) => {
+    if (owned.includes(i)) return;
+    row(`${h.name} 우주인`, '캐릭터', '모습만 바뀌어요.', h.price, coins >= h.price, () => { owned.push(i); store.set('heroes', owned); hero = i; store.set('hero', i); }, h.f[0]);
+  });
+}
+
+// ---------- my records ----------
+function openRecords() {
+  const rec = loadRec(), l = level === 'climb' ? CLIMB : LEVELS.find(x => x.id === level);
+  $('recMode').textContent = `${level === 'climb' ? '도전 모드' : `Lv.${l.n} ${l.short}`}${easy ? ' · 여유 모드' : ''}`;
+  const list = $('recList'); list.innerHTML = '';
+  if (!rec.top.length) list.innerHTML = '<div class="empty">아직 기록이 없어요. 한 판 올라가 보세요!</div>';
+  rec.top.forEach((e, i) => {
+    const li = document.createElement('div'); li.className = 'li';
+    li.innerHTML = '<span></span><span class="sub"></span>';
+    li.children[0].textContent = `${i + 1}위  ${e.f}층`;
+    li.children[1].textContent = [e.d, e.i ? '아이템' : ''].filter(Boolean).join(' · ');
+    list.appendChild(li);
+  });
+  const bars = $('recBars'), max = Math.max(1, ...rec.recent);
+  bars.innerHTML = rec.recent.length ? rec.recent.map(f => `<i style="height:${Math.max(3, f / max * 100)}%" title="${f}층"></i>`).join('') : '';
+  $('records').hidden = false;
+}
+
+// ---------- input ----------
+const tap = (el, fn) => el.addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); fn(); });
+tap($('padL'), () => answer('L'));
+tap($('padR'), () => answer('R'));
+$('useLens').addEventListener('click', () => { initAudio(); useItem('lens'); });
+$('usePause').addEventListener('click', () => { initAudio(); useItem('pause'); });
+$('startBtn').addEventListener('click', () => { initAudio(); play('toggle', 1, .5); openSetup(1); });
+$('nextBtn').addEventListener('click', () => { if (isOpen(level)) { play('toggle', 1, .5); openSetup(2); } });
+$('backBtn').addEventListener('click', () => { play('toggle', 1, .5); openSetup(1); });
+$('toTitle').addEventListener('click', () => toMenu());
+$('goBtn').addEventListener('click', start);
+$('retryBtn').addEventListener('click', start);
+$('setupBtn').addEventListener('click', () => openSetup(1));
+$('menuBtn').addEventListener('click', () => toMenu());
+$('shopBtn').addEventListener('click', () => { initAudio(); openShop(); });
+$('shopClose').addEventListener('click', () => { $('shop').hidden = true; });
+$('recBtn').addEventListener('click', () => { initAudio(); openRecords(); });
+$('recClose').addEventListener('click', () => { $('records').hidden = true; });
+$('easyBtn').addEventListener('click', () => { easy = !easy; store.set('easy', easy); initAudio(); play('toggle', 1, .5); syncLevel(); });
+function openSettings() {
+  initAudio();
+  $('musicVol').value = vol.music; $('sfxVol').value = vol.sfx; syncMute();
+  $('pausedNote').hidden = S.mode !== 'play';
+  $('settings').hidden = false; $('musicVol').focus();
+}
+function syncMute() { $('musicVolN').textContent = vol.music + '%'; $('sfxVolN').textContent = vol.sfx + '%'; }
+$('gearBtn').addEventListener('click', openSettings);
+$('setBtn').addEventListener('click', openSettings);
+$('setClose').addEventListener('click', () => { $('settings').hidden = true; });
+$('musicVol').addEventListener('input', e => { vol.music = +e.target.value; store.set('vol', vol); applyVolume(); syncMute(); });
+$('sfxVol').addEventListener('input', e => { vol.sfx = +e.target.value; store.set('vol', vol); applyVolume(); syncMute(); });
+$('sfxVol').addEventListener('change', () => play('coin', 1, .55)); // a sample of the new level
+// the first tap anywhere unlocks audio, so the title music can start
+addEventListener('pointerdown', () => initAudio(), { once: true });
+syncMute(); buildLevels(); syncLevel(); syncEquip();
+// teacher code: only an FNV-1a hash of the normalized code lives in the page
+const CODE_HASH = 2063219803; // "ppang"
+const fnv = str => { let h = 0x811c9dc5; for (const ch of str) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h; };
+$('codeBtn').addEventListener('click', () => { initAudio(); $('codeMsg').textContent = ''; $('codeInput').value = ''; $('codeBox').hidden = false; $('codeInput').focus(); });
+$('codeClose').addEventListener('click', () => { $('codeBox').hidden = true; });
+$('codeForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if (fnv($('codeInput').value.trim().toUpperCase().replace(/\s+/g, '')) === CODE_HASH) {
+    unlocked = LEVELS.length; store.set('unlocked', unlocked);
+    $('codeMsg').textContent = '모든 레벨이 열렸어요!'; play('buy', 1, .6); buildLevels(); syncLevel();
+  } else { $('codeMsg').textContent = '코드가 맞지 않아요. 다시 확인해 주세요.'; play('nope', 1, .5); }
+});
+addEventListener('keydown', e => {
+  if (e.repeat || (e.target && e.target.tagName === 'INPUT')) return;
+  initAudio();
+  if (e.key === 'ArrowLeft' || e.code === 'KeyA') { e.preventDefault(); answer('L'); }
+  else if (e.key === 'ArrowRight' || e.code === 'KeyD') { e.preventDefault(); answer('R'); }
+  else if (e.key === '1' && S.mode === 'play') useItem('lens');
+  else if (e.key === '2' && S.mode === 'play') useItem('pause');
+  else if (e.key === 'Escape') { $('shop').hidden = true; $('records').hidden = true; $('codeBox').hidden = true; $('settings').hidden = true; }
+  else if (e.key === 'Enter' && $('shop').hidden && $('records').hidden && $('codeBox').hidden && $('settings').hidden) {
+    // Enter walks forward: title → step 1 → step 2 → start; after a fall it climbs again
+    if (document.activeElement && document.activeElement.tagName === 'BUTTON' && document.activeElement !== document.body) return;
+    e.preventDefault();
+    if (S.mode === 'over') start();
+    else if (S.mode === 'menu' && !$('menu').hidden) openSetup(1);
+    else if (S.mode === 'menu' && !$('step1').hidden) { if (isOpen(level)) openSetup(2); }
+    else if (S.mode === 'menu' && !$('step2').hidden) start();
+  }
+});
+hud();
+</script>
