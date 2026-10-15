@@ -362,6 +362,13 @@ button:focus-visible{outline:3px dashed var(--yellow);outline-offset:6px}
           <input id="joinInput" type="text" maxlength="7" aria-label="학급 코드" spellcheck="false">
           <button class="btn" type="submit" style="font-size:1rem;padding:8px 12px">참여</button>
         </form>
+        <div class="field" id="joinConfirm" hidden>
+          <p class="tagline" id="joinAsk"></p>
+          <div class="row">
+            <button class="btn" id="joinYes">네, 참여할래요</button>
+            <button class="btn ghost" id="joinNo">아니요</button>
+          </div>
+        </div>
         <p class="codemsg" id="joinMsg"></p>
         <p class="hint">랭킹에는 별명과 층수만 올라가요. 실명은 쓰지 마세요. 기록은 30일 뒤 자동으로 지워져요.</p>
         <button class="linkbtn" id="toCreate">선생님: 새 학급 만들기</button>
@@ -1500,7 +1507,7 @@ function classPane(id) {
 }
 function openClasses() {
   initAudio();
-  if (myClass()) openBoard(); else { $('joinMsg').textContent = ''; $('joinInput').value = ''; classPane('clJoin'); $('joinInput').focus(); }
+  if (myClass()) openBoard(); else resetJoin();
 }
 async function joinClass() {
   const code = cleanCode($('joinInput').value);
@@ -1509,9 +1516,19 @@ async function joinClass() {
   try {
     const [c] = await rpc('class_info', { p_code: code });
     if (!c) { $('joinMsg').textContent = '그런 학급이 없어요. 코드를 다시 확인해 주세요.'; return play('nope', 1, .5); }
-    store.set('class', { code: c.code, label: c.label, allowItems: c.allow_items });
-    play('buy', 1, .6); openBoard();
+    // show which class this code belongs to before joining, so a mistyped code cannot land in someone else's class
+    pendingClass = { code: c.code, label: c.label, allowItems: c.allow_items };
+    $('joinAsk').textContent = c.label ? `'${c.label}' (${c.code})에 참여할까요?` : `학급 코드 ${c.code}에 참여할까요? (학급 이름 없음)`;
+    $('joinForm').hidden = true; $('joinConfirm').hidden = false; $('joinMsg').textContent = '';
+    play('toggle', 1, .5); $('joinYes').focus();
   } catch (e) { $('joinMsg').textContent = NET_MSG; }
+}
+let pendingClass = null;
+function resetJoin(msg = '') {
+  pendingClass = null;
+  $('joinForm').hidden = false; $('joinConfirm').hidden = true;
+  $('joinMsg').textContent = msg; $('joinInput').value = '';
+  classPane('clJoin'); $('joinInput').focus();
 }
 let view = null; // { level, easy } of the class board being viewed
 function openBoard() {
@@ -1709,6 +1726,8 @@ $('repClose').addEventListener('click', () => { $('report').hidden = true; });
 $('classBtn').addEventListener('click', openClasses);
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { $(b.dataset.close).hidden = true; }));
 $('joinForm').addEventListener('submit', e => { e.preventDefault(); joinClass(); });
+$('joinYes').addEventListener('click', () => { if (!pendingClass) return; store.set('class', pendingClass); pendingClass = null; play('buy', 1, .6); openBoard(); });
+$('joinNo').addEventListener('click', () => resetJoin('코드를 다시 확인해 주세요.'));
 $('toCreate').addEventListener('click', () => { $('createMsg').textContent = ''; $('newLabel').value = ''; $('newPin').value = ''; classPane('clCreate'); $('newLabel').focus(); });
 $('createGo').addEventListener('click', createClass);
 $('createBack').addEventListener('click', openClasses);
@@ -1716,14 +1735,14 @@ $('madeOk').addEventListener('click', () => { view = null; openBoard(); });
 $('boardLevel').addEventListener('change', e => { view.level = e.target.value; loadBoard(); });
 $('boardEasy').addEventListener('click', () => { view.easy = !view.easy; $('boardEasy').setAttribute('aria-pressed', String(view.easy)); loadBoard(); });
 $('boardRefresh').addEventListener('click', loadBoard);
-$('leaveClass').addEventListener('click', () => { store.set('class', null); view = null; openClasses(); });
+$('leaveClass').addEventListener('click', () => { store.set('class', null); view = null; resetJoin(); });
 $('toTeacher').addEventListener('click', openTeacher);
 $('pinForm').addEventListener('submit', e => { e.preventDefault(); tPin = $('pinInput').value.trim(); $('pinInput').value = ''; loadTeacher(); });
 $('tSave').addEventListener('click', async () => { if (await teacherCall('teacher_settings', { p_allow_items: $('tItems').checked, p_label: $('tLabel').value })) { $('tMsg').textContent = '저장했어요.'; loadTeacher(); } });
 $('tItems').addEventListener('change', () => $('tSave').click());
 $('tReset').addEventListener('click', () => confirmT('이 학급의 모든 랭킹 기록을 지울까요?', async () => { if (await teacherCall('teacher_reset')) { $('tMsg').textContent = '초기화했어요.'; loadTeacher(); } }));
 $('tCloseClass').addEventListener('click', () => confirmT('학급을 닫으면 코드와 기록이 모두 사라져요. 닫을까요?', async () => {
-  if (await teacherCall('teacher_close')) { store.set('class', null); tPin = ''; view = null; openClasses(); $('joinMsg').textContent = '학급을 닫았어요.'; }
+  if (await teacherCall('teacher_close')) { store.set('class', null); tPin = ''; view = null; resetJoin('학급을 닫았어요.'); }
 }));
 $('tYes').addEventListener('click', () => { $('tConfirm').hidden = true; const f = tAction; tAction = null; if (f) f(); });
 $('tNo').addEventListener('click', () => { $('tConfirm').hidden = true; tAction = null; });
