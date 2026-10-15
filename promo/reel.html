@@ -1,0 +1,330 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>셈셈 점프 릴스</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #05060f; display: flex; align-items: center; justify-content: center; }
+  canvas { height: 96vh; aspect-ratio: 9 / 16; image-rendering: pixelated; }
+</style>
+<canvas id="c"></canvas>
+<script>
+// Instagram Reel for 셈셈 점프: 1080×1920, 30 fps, 25 s. render(t) is a pure function of time, so frames can be
+// exported one by one (see exportFrames) and encoded with promo/encode.swift.
+const W = 1080, H = 1920, SCALE = 5, LW = W / SCALE, LH = H / SCALE, FPS = 30, DURATION = 25;
+const cv = document.getElementById('c'); cv.width = W; cv.height = H;
+const ctx = cv.getContext('2d');
+const low = document.createElement('canvas'); low.width = LW; low.height = LH;
+const lx = low.getContext('2d');
+const PAL = { ink: '#000000', paper: '#FFF1E8', silver: '#C2C3C7', yellow: '#FFEC27', gold: '#f2b63d', green: '#3fcf6a', red: '#e4573d', plum: '#7E2553', brown: '#b86f50', tan: '#e4a672', night: '#0b1024' };
+const FONT = 'Galmuri11';
+
+// ---------- assets (served from the project root) ----------
+const img = src => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
+const SHEET = {};
+const TS = 18, CS = 24, BS = 24, SX = 24, SY = 16;
+const T = { grass: 0, sand: 40, snow: 80, flagA: 111, flagB: 112, coinA: 151, coinB: 152, digit0: 160 };
+const HEROES = [0, 2, 4, 6, 9];
+const SKY = [[0, [205, 240, 245], [140, 230, 170]], [25, [95, 185, 240], [205, 240, 245]], [45, [126, 37, 83], [250, 170, 90]],
+  [75, [16, 22, 52], [45, 48, 90]], [110, [0, 0, 0], [11, 16, 36]]];
+let DIG = [];
+async function load() {
+  [SHEET.tiles, SHEET.chars, SHEET.bgs] = await Promise.all(['tilemap_packed', 'tilemap-characters_packed', 'tilemap-backgrounds_packed'].map(n => img(`../assets/sprites/${n}.png`)));
+  const f = new FontFace(FONT, 'url(../assets/font/Galmuri11-Bold.woff2)'); await f.load(); document.fonts.add(f);
+  const o = document.createElement('canvas'); o.width = o.height = TS; const ox = o.getContext('2d');
+  for (let d = 0; d < 10; d++) {
+    const id = T.digit0 + d; ox.clearRect(0, 0, TS, TS);
+    ox.drawImage(SHEET.tiles, (id % 20) * TS, Math.floor(id / 20) * TS, TS, TS, 0, 0, TS, TS);
+    const px = ox.getImageData(0, 0, TS, TS).data;
+    let x0 = TS, x1 = 0, y0 = TS, y1 = 0;
+    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) if (px[(y * TS + x) * 4 + 3]) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    DIG[d] = { x0, w: x1 - x0 + 1, y0, h: y1 - y0 + 1 };
+  }
+  const b = document.createElement('canvas'); b.width = SHEET.bgs.width; b.height = SHEET.bgs.height;
+  const bx = b.getContext('2d'); bx.drawImage(SHEET.bgs, 0, 0);
+  const at = (x, y) => [...bx.getImageData(x, y, 1, 1).data.slice(0, 3)];
+  SKY[0][1] = at(2, 2); SKY[0][2] = at(6 * BS + 2, 2); SKY[1][2] = at(2, 2); SKY[2][2] = at(4 * BS + 2, 2);
+}
+
+// ---------- deterministic randomness ----------
+const rng = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const easeOut = k => 1 - (1 - k) ** 3;
+const backOut = k => { const c = 1.9; return 1 + (c + 1) * (k - 1) ** 3 + c * (k - 1) ** 2; };
+
+// ---------- script ----------
+// regular problems, each with the level tag the game would show
+const SHOW = [
+  { s: 3.00, h: 4.00, q: '7 × 8 = ?', a: '56', w: '63', tag: 'Lv.9 구구 6~9단' },
+  { s: 4.15, h: 5.00, q: '13 − 8 = ?', a: '5', w: '6', tag: 'Lv.4 받아내림 (몇)−(몇)' },
+  { s: 5.15, h: 6.00, q: '38 + 47 = ?', a: '85', w: '75', tag: 'Lv.6 받아올림 두 자리', coin: true },
+  { s: 6.15, h: 7.00, q: '56 ÷ 7 = ?', a: '8', w: '9', tag: 'Lv.13 나눗셈' },
+  { s: 7.15, h: 7.90, q: '9 + 3 × 6 = ?', a: '27', w: '72', tag: 'Lv.19 혼합 계산' },
+  { s: 8.05, h: 8.80, q: '6 × 9 = ?', a: '54', w: '56', tag: 'Lv.10 구구 2~9단' },
+  { s: 8.95, h: 9.60, q: '274 × 3 = ?', a: '822', w: '812', tag: 'Lv.15 세 자리 × 한 자리' },
+  { s: 10.35, h: 11.00, q: '? × 8 = 56', a: '7', w: '6', boss: true },
+  { s: 11.15, h: 11.90, q: '? ÷ 7 = 8', a: '56', w: '63', boss: true },
+  { s: 12.05, h: 12.80, q: '6 × 7 + 5 = ?', a: '47', w: '45', boss: true },
+];
+const BOSS_IN = 9.8, BOSS_HITS = [11.0, 11.9, 12.8], BOSS_DEAD = 12.8;
+const FAST = ['4 × 7', '15 − 9', '8 × 6', '72 ÷ 8', '23 + 45', '9 × 9', '64 ÷ 8', '7 + 8', '3 × 9', '81 − 36', '5 × 8', '49 ÷ 7',
+  '6 + 7 + 4', '8 × 8', '27 × 4', '42 − 19', '9 × 7', '35 ÷ 5', '12 + 59', '7 × 7', '56 ÷ 8', '4 × 9', '91 − 47', '6 × 8'];
+const HOPS = []; // { t, dir }
+{
+  const pat = [1, -1, -1, 1, -1, 1, 1, -1, 1, -1];
+  SHOW.forEach((p, i) => { p.dir = pat[i]; HOPS.push({ t: p.h, dir: p.dir }); });
+  const r = rng(7);
+  for (let k = 0; k < 24; k++) HOPS.push({ t: 14.0 + k * 0.22, dir: r() < .5 ? -1 : 1, fast: k });
+  for (let k = 0; k < 8; k++) HOPS.push({ t: 19.6 + k * 0.7, dir: r() < .5 ? -1 : 1 });
+}
+// the floor counter: three floors in at the start, ten floors by the boss, then a dash to the 100th floor
+const floorOf = i => i <= 10 ? 3 + i : i <= 34 ? 13 + Math.round((i - 10) * 87 / 24) : 100 + (i - 34) * 3;
+const SFX = []; // { t, name } for the encoder
+HOPS.forEach((h, i) => SFX.push({ t: h.t, name: i >= 7 && i < 10 ? 'hit' : 'step', rate: 1 + (i % 6) * .1 }));
+SFX.push({ t: SHOW[2].h + .05, name: 'coin' }, { t: BOSS_IN, name: 'bossin' }, { t: BOSS_DEAD + .05, name: 'bossdown' }, { t: 13.1, name: 'coin' });
+SFX.push({ t: 19.7, name: 'record' });
+
+// ---------- climber position ----------
+const HOP_LEN = .15;
+function posAt(t) {
+  let x = 0, y = 0;
+  for (const h of HOPS) {
+    if (t >= h.t + HOP_LEN) { x += h.dir; y += 1; continue; }
+    if (t > h.t) { const k = (t - h.t) / HOP_LEN; return { x: x + h.dir * k, y: y + k, arc: Math.sin(Math.PI * k) * .4, hopping: true, face: h.dir, done: y }; }
+    break;
+  }
+  const last = HOPS.filter(h => h.t + HOP_LEN <= t).pop();
+  return { x, y, arc: 0, hopping: false, face: last ? last.dir : 1, done: y };
+}
+const stepCount = t => HOPS.filter(h => t >= h.t + HOP_LEN).length;
+const pathPoint = i => { let x = 0; for (let k = 0; k < i; k++) x += HOPS[k].dir; return { x, y: i }; };
+// sky altitude runs on its own clock so the dash reaches space
+const altAt = t => t < 14 ? 3 + stepCount(t) * .9 : t < 19.4 ? lerp(13, 112, easeOut(clamp((t - 14) / 5.4))) : 112 + (t - 19.4) * 1.5;
+
+// ---------- low-res drawing (the game's look) ----------
+const rect = (x, y, w, h, c) => { lx.fillStyle = c; lx.fillRect(Math.round(x), Math.round(y), w, h); };
+const tile = (id, x, y) => lx.drawImage(SHEET.tiles, (id % 20) * TS, Math.floor(id / 20) * TS, TS, TS, Math.round(x), Math.round(y), TS, TS);
+function sprite(c, id, cx, cy, sc = 1, fx = 1, fy = 1) {
+  c.save(); c.translate(Math.round(cx), Math.round(cy)); c.scale(sc * fx, sc * fy);
+  c.drawImage(SHEET.chars, (id % 9) * CS, Math.floor(id / 9) * CS, CS, CS, -CS / 2, -CS / 2, CS, CS);
+  c.restore();
+}
+function num(n, cx, bottom) {
+  const ds = String(n).split('').map(Number), w = ds.reduce((s, d) => s + DIG[d].w - 1, 1);
+  let x = Math.round(cx - w / 2);
+  for (const d of ds) {
+    const g = DIG[d], id = T.digit0 + d;
+    lx.drawImage(SHEET.tiles, (id % 20) * TS + g.x0, Math.floor(id / 20) * TS + g.y0, g.w, g.h, x, Math.round(bottom - g.h), g.w, g.h);
+    x += g.w - 1;
+  }
+  return w;
+}
+function skyAt(alt) {
+  let i = 0; while (i < SKY.length - 2 && alt > SKY[i + 1][0]) i++;
+  const [a0, t0, b0] = SKY[i], [a1, t1, b1] = SKY[i + 1], k = clamp((alt - a0) / (a1 - a0));
+  return [t0.map((v, j) => lerp(v, t1[j], k)), b0.map((v, j) => lerp(v, b1[j], k))];
+}
+const material = f => f < 20 ? T.grass : f < 50 ? T.sand : T.snow;
+const STARS = (() => { const r = rng(3); return Array.from({ length: 140 }, () => ({ x: r(), y: r(), tw: r() < .25 })); })();
+const CLOUDS = (() => { const r = rng(5); return Array.from({ length: 12 }, (_, i) => ({ wx: r() * 300, wy: 2 + i * 4 + r() * 3, sp: 3 + r() * 4, big: r() < .5 })); })();
+
+function drawWorld(t) {
+  const p = posAt(t), cam = posAt(Math.max(0, t - .12)), alt = altAt(t), ANCHOR = .62;
+  const scr = (x, y) => [Math.round(LW / 2 + (x - cam.x) * SX), Math.round(LH * ANCHOR - (y - cam.y) * SY)];
+  // sky in bands, stars, clouds, hills
+  const [top, bot] = skyAt(alt);
+  for (let i = 0; i < 10; i++) { const k = i / 9; rect(0, Math.floor(LH * i / 10), LW, Math.ceil(LH / 10) + 1, `rgb(${top.map((v, j) => Math.round(lerp(v, bot[j], k)))})`); }
+  const sa = clamp((alt - 50) / 30);
+  if (sa > 0) {
+    lx.globalAlpha = sa;
+    for (const s of STARS) { if (s.tw && Math.floor(t * 3 + s.x * 10) % 3 === 0) continue; rect(s.x * LW, ((s.y * LH * 1.4 + alt * 1.6) % (LH * 1.4)) - LH * .2, 1, 1, PAL.paper); }
+    lx.globalAlpha = 1;
+  }
+  const ca = clamp(1 - (alt - 45) / 20);
+  if (ca > 0) {
+    lx.globalAlpha = ca;
+    for (const c of CLOUDS) {
+      const x = ((c.wx + t * c.sp - cam.x * SX * .3) % (LW + 60) + LW + 60) % (LW + 60) - 30, y = LH * ANCHOR - (c.wy - alt * .6) * SY * .9;
+      if (y < -10 || y > LH + 10) continue;
+      const w = c.big ? 22 : 14, X = Math.round(x), Y = Math.round(y);
+      rect(X + 2, Y, w - 4, 1, PAL.paper); rect(X, Y + 1, w, 3, PAL.paper); rect(X + 1, Y + 4, w - 2, 1, '#cfe3ea');
+      rect(X + 4, Y - 3, c.big ? 8 : 5, 3, PAL.paper); if (c.big) rect(X + 12, Y - 2, 6, 2, PAL.paper);
+    }
+    lx.globalAlpha = 1;
+  }
+  const ground = Math.round(LH * ANCHOR + TS + cam.y * SY * .5);
+  if (ground - BS < LH) {
+    const shift = ((Math.round(-cam.x * SX * .4) % (BS * 2)) + BS * 2) % (BS * 2);
+    for (let x = shift - BS * 2; x < LW; x += BS) {
+      const col = 6 + (((x - shift) / BS) & 1);
+      lx.drawImage(SHEET.bgs, col * BS, BS, BS, BS, x, ground - BS, BS, BS);
+      for (let y = ground; y < LH; y += BS) lx.drawImage(SHEET.bgs, col * BS, BS * 2, BS, BS, x, y, BS, BS);
+    }
+  }
+  // stairs already climbed, with a flag at every tenth floor
+  const done = p.done + (p.hopping ? 1 : 0);
+  for (let i = Math.max(0, done - 40); i <= done; i++) {
+    const s = pathPoint(i), [cx, cy] = scr(s.x, s.y);
+    if (cy < -TS || cy > LH + TS) continue;
+    tile(material(floorOf(i)), cx - TS / 2, cy);
+    if (i > 0 && i <= 10 && Math.floor(floorOf(i) / 10) > Math.floor(floorOf(i - 1) / 10)) {
+      tile(Math.floor(t * 3) % 2 ? T.flagA : T.flagB, cx - TS / 2 - 6, cy - TS);
+    }
+  }
+  // the two candidate steps while a problem is on screen
+  const cur = SHOW.find(q => t >= q.s && t < q.h);
+  const fast = t >= 13.95 && t < 19.3, idle = t < 3;
+  if (cur || fast || idle) {
+    const base = pathPoint(p.done);
+    for (const d of [-1, 1]) {
+      const [cx, cy] = scr(base.x + d, base.y + 1), x0 = cx - TS / 2, ph = Math.floor(t * 6) % 4;
+      lx.globalAlpha = .35; tile(material(floorOf(p.done + 1)), x0, cy); lx.globalAlpha = 1;
+      for (let i = 0; i < TS; i++) if ((i + ph) % 4 < 2) { rect(x0 + i, cy, 1, 1, PAL.paper); rect(x0 + TS - 1 - i, cy + TS - 1, 1, 1, PAL.paper); rect(x0, cy + TS - 1 - i, 1, 1, PAL.paper); rect(x0 + TS - 1, cy + i, 1, 1, PAL.paper); }
+      if (cur) {
+        const v = d === cur.dir ? cur.a : cur.w, [pcx] = scr(p.x, p.y);
+        const w = v.split('').reduce((s, c) => s + DIG[+c].w - 1, 1);
+        num(v, pcx + d * Math.max(SX, 13 + w / 2), cy + 13);
+        if (cur.coin) tile(Math.floor(t * 6) % 2 ? T.coinA : T.coinB, cx - TS / 2, cy - TS - 2);
+      }
+      if (idle) { lx.font = `12px ${FONT}`; lx.textAlign = 'center'; lx.textBaseline = 'bottom'; lx.fillStyle = PAL.ink; lx.fillText('?', cx + 1, cy + 15); lx.fillStyle = PAL.paper; lx.fillText('?', cx, cy + 14); }
+    }
+  }
+  // climber
+  const [px, py] = scr(p.x, p.y + p.arc), idleBob = !p.hopping && Math.floor(t * 2.5) % 2 ? 1 : 0;
+  sprite(lx, HEROES[0] + (p.hopping || idleBob ? 1 : 0), px, py - CS / 2 + 1, 1, -p.face, 1);
+  // particles and pops
+  for (const b of BURSTS) {
+    const age = t - b.t; if (age < 0 || age > 1.1) continue;
+    const r = rng(b.seed), o = pathPoint(b.i);
+    for (let k = 0; k < b.n; k++) {
+      const vx = (r() - .5) * 3, vy = r() * 3 + 1, life = .6 + r() * .5, c = b.c[Math.floor(r() * b.c.length)], s = r() < .35 ? 2 : 1;
+      if (age > life) continue;
+      const [x, y] = scr(o.x + (r() - .5) * .8 + vx * age, o.y + vy * age - 4.5 * age * age);
+      rect(x, y, s, s, c);
+    }
+  }
+  for (const q of POPS) {
+    const age = t - q.t; if (age < 0 || age > 1.2) continue;
+    const o = pathPoint(q.i), [x, y] = scr(o.x, o.y + 2.2 + age * .8);
+    if (age < .8 || Math.floor(age * 10) % 2) tile(Math.floor(t * 6) % 2 ? T.coinA : T.coinB, x - TS / 2, y - 26);
+    q.where = { x: x * SCALE, y: y * SCALE }; // the label itself is drawn crisp on the big canvas
+  }
+  // the boss
+  if (t >= BOSS_IN && t < BOSS_DEAD + 1.2) {
+    const enter = easeOut(clamp((t - BOSS_IN) / .5)), dead = clamp((t - BOSS_DEAD) / 1.0);
+    let bx = lerp(LW + 40, LW - 50, enter) + dead * 40, by = 150 + Math.sin(t * 3) * 3 + dead * dead * 300;
+    const hit = BOSS_HITS.some(h => t >= h && t < h + .3);
+    if (hit) bx += Math.round(Math.sin(t * 90) * 3);
+    if (!(hit && Math.floor(t * 20) % 2)) sprite(lx, [11, 12][Math.floor(t * 4) % 2], bx, by, 2, 1, t >= BOSS_DEAD ? -1 : 1);
+  }
+}
+const BURSTS = [], POPS = [];
+HOPS.forEach((h, i) => BURSTS.push({ t: h.t, i: i + 1, n: 6, c: [PAL.paper, PAL.tan], seed: 100 + i }));
+BURSTS.push({ t: BOSS_DEAD, i: 10, n: 22, c: [PAL.yellow, PAL.gold, PAL.paper], seed: 999 });
+POPS.push({ t: SHOW[2].h + .05, i: 3, text: '+1' }, { t: 13.1, i: 10, text: '보물 +4' });
+
+// ---------- crisp text on the big canvas ----------
+function txt(s, x, y, size, color, { align = 'center', stroke = Math.round(size / 6), shadow = PAL.plum, alpha = 1, scale = 1 } = {}) {
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.scale(scale, scale);
+  ctx.font = `${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  if (shadow) { ctx.fillStyle = shadow; ctx.lineWidth = stroke; ctx.strokeStyle = shadow; ctx.strokeText(s, size / 12 * 1.5, size / 12 * 1.5); ctx.fillText(s, size / 12 * 1.5, size / 12 * 1.5); }
+  ctx.lineWidth = stroke; ctx.strokeStyle = PAL.ink; ctx.strokeText(s, 0, 0);
+  ctx.fillStyle = color; ctx.fillText(s, 0, 0);
+  ctx.restore();
+}
+// a caption pops in, holds, and fades out
+const life = (t, a, b) => ({ on: t >= a && t < b, k: clamp((t - a) / .25), out: clamp((b - t) / .2) });
+function caption(t, a, b, lines, y = 1400, size = 72) {
+  const L = life(t, a, b); if (!L.on) return;
+  lines.forEach((ln, i) => txt(ln, W / 2, y + i * size * 1.25, size, i === lines.length - 1 ? PAL.yellow : PAL.paper, { scale: backOut(L.k) * .4 + .6 * L.k, alpha: L.out * clamp(L.k * 2) }));
+}
+function banner(t) {
+  if (t < 3 || t >= 19.4) return;
+  const boss = t >= 9.6 && t < 14;
+  const cur = SHOW.find(q => t >= q.s && t < q.h + .15);
+  const y0 = 260, h = 210;
+  ctx.fillStyle = boss ? 'rgba(90,16,40,.9)' : 'rgba(11,16,36,.82)'; ctx.fillRect(0, y0, W, h);
+  ctx.fillStyle = boss ? PAL.red : PAL.paper; ctx.fillRect(0, y0 + h, W, 12);
+  const i = stepCount(t), floor = floorOf(i);
+  let tag = cur && cur.tag ? cur.tag : '', q = '';
+  if (cur) q = t >= cur.h ? cur.q.replace('?', cur.a) : cur.q;
+  else if (boss) q = t < 10.35 ? 'BOSS 등장!' : '보스 처치!';
+  else if (t >= 13.95) { const k = HOPS.findIndex(h => h.fast != null && h.t > t); q = (FAST[(k < 0 ? 23 : HOPS[k].fast)] || FAST[23]) + ' = ?'; tag = '도전 모드'; }
+  if (boss) tag = 'BOSS · 화난 블록';
+  txt(`${floor}층`, 50, y0 + 42, 36, PAL.yellow, { align: 'left', shadow: null, stroke: 6 });
+  txt(tag, W - 50, y0 + 42, 36, PAL.silver, { align: 'right', shadow: null, stroke: 6 });
+  if (boss && t >= 10.35 && t < BOSS_DEAD) {
+    const hp = 3 - BOSS_HITS.filter(h => t >= h).length;
+    for (let k = 0; k < 3; k++) { ctx.fillStyle = PAL.ink; ctx.fillRect(W / 2 - 66 + k * 48 - 4, y0 + 30, 40, 32); ctx.fillStyle = k < hp ? PAL.red : '#3a2030'; ctx.fillRect(W / 2 - 66 + k * 48, y0 + 34, 32, 24); }
+  }
+  const solved = cur && t >= cur.h;
+  let size = 108; ctx.font = `${size}px ${FONT}`; while (ctx.measureText(q).width > W - 120) { size -= 12; ctx.font = `${size}px ${FONT}`; }
+  txt(q, W / 2, y0 + 136, size, solved ? PAL.green : boss ? PAL.paper : PAL.yellow, { shadow: boss ? PAL.ink : PAL.plum });
+}
+function cta(t) {
+  if (t < 19.4) return;
+  const k = clamp((t - 19.4) / .5);
+  ctx.fillStyle = `rgba(11,16,36,${.5 * k})`; ctx.fillRect(0, 0, W, H);
+  const L = a => clamp((t - a) / .3);
+  txt('셈셈 점프', W / 2, 640, 168, PAL.yellow, { scale: backOut(L(19.6)) * .5 + .5 * L(19.6), alpha: clamp(L(19.6) * 2), stroke: 24 });
+  txt('문제를 풀고 정답 계단으로 폴짝!', W / 2, 820, 48, PAL.paper, { alpha: L(20.1), shadow: null, stroke: 10 });
+  txt('우주까지 폴짝!', W / 2, 890, 48, PAL.paper, { alpha: L(20.1), shadow: null, stroke: 10 });
+  // the five astronauts hop in a row
+  HEROES.forEach((id, i) => {
+    const a = L(20.3 + i * .08); if (!a) return;
+    const hop = Math.max(0, Math.sin((t - 20.3) * 6 - i * .9)) * 26;
+    ctx.globalAlpha = a; ctx.imageSmoothingEnabled = false;
+    sprite(ctx, id + (hop > 13 ? 1 : 0), W / 2 + (i - 2) * 168, 1090 - hop, 6);
+    ctx.globalAlpha = 1;
+  });
+  txt('무료 · 설치 없이 바로!', W / 2, 1270, 60, PAL.green, { alpha: L(20.8), shadow: null, stroke: 12 });
+  const u = L(21.2);
+  if (u) {
+    const pulse = 1 + Math.max(0, Math.sin((t - 21.2) * 4)) * .03;
+    ctx.save(); ctx.globalAlpha = u; ctx.translate(W / 2, 1385); ctx.scale(pulse, pulse);
+    ctx.fillStyle = PAL.paper; ctx.fillRect(-430, -62, 860, 124); ctx.fillStyle = '#1D2B53'; ctx.fillRect(-418, -50, 836, 100);
+    ctx.restore();
+    txt('semsemjump.github.io', W / 2, 1387, 60, PAL.paper, { alpha: u, shadow: null, stroke: 10, scale: pulse });
+  }
+  txt('만든이 빵쌤 (ppang_sem)', W / 2, 1500, 36, PAL.silver, { alpha: L(21.6), shadow: null, stroke: 8 });
+}
+
+function render(t) {
+  lx.imageSmoothingEnabled = false;
+  drawWorld(t);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(low, 0, 0, W, H);
+  // floating labels from the world, drawn crisp
+  for (const q of POPS) { const age = t - q.t; if (age < 0 || age > 1.2 || !q.where) continue; if (age < .8 || Math.floor(age * 10) % 2) txt(q.text, q.where.x, q.where.y - 20, 48, PAL.gold, { shadow: null, stroke: 10 }); }
+  banner(t);
+  // captions
+  caption(t, .15, 2.95, ['수학 문제 풀면', '계단이 생긴다?!'], 760, 96);
+  caption(t, 3.1, 6.1, ['정답 계단으로', '폴짝!']);
+  caption(t, 6.3, 9.6, ['틀리면 바로', '추락!']);
+  caption(t, 9.8, 12.8, ['10층마다', '보스 등장!']);
+  caption(t, 12.9, 13.95, ['보물 획득!']);
+  caption(t, 14.05, 15.85, ['1학년 덧셈부터', '5학년 혼합 계산까지']);
+  caption(t, 15.85, 17.65, ['19단계 레벨,', '교과서 순서 그대로']);
+  caption(t, 17.65, 19.4, ['학급 랭킹 &', '학습 결과까지']);
+  cta(t);
+}
+
+// ---------- preview and export ----------
+let playing = true, t0 = performance.now();
+function loop(now) { if (playing) render(((now - t0) / 1000) % DURATION); requestAnimationFrame(loop); }
+window.reel = { render, FPS, DURATION, SFX, frames: Math.round(DURATION * FPS),
+  stop() { playing = false; },
+  // render every frame and POST it as PNG to the local export server
+  async exportFrames(url = '/frame', from = 0, to = Math.round(DURATION * FPS)) {
+    playing = false;
+    for (let i = from; i < to; i++) {
+      render(i / FPS);
+      const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
+      await fetch(`${url}?i=${i}`, { method: 'POST', body: blob });
+      window.reel.progress = i + 1;
+    }
+    await fetch('/sfx', { method: 'POST', body: JSON.stringify(SFX) });
+    window.reel.done = true;
+  },
+};
+load().then(() => { window.reel.ready = true; requestAnimationFrame(loop); });
+</script>

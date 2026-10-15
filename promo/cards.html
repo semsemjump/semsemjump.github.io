@@ -1,0 +1,219 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>셈셈 점프 카드뉴스</title>
+<style>
+  html, body { margin: 0; background: #05060f; }
+  body { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }
+  canvas { width: 320px; height: 400px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script>
+// Instagram card news for 셈셈 점프: eight 1080×1350 (4:5) cards in the game's pixel style, each built around real
+// game captures from promo/captures. window.cards.exportAll() posts them as PNGs to the local export server.
+const W = 1080, H = 1350, FONT = 'Galmuri11', TOTAL = 8;
+const PAL = { ink: '#000000', night: '#0b1024', navy: '#1D2B53', deep: '#2b2f4f', paper: '#FFF1E8', silver: '#C2C3C7', dim: '#8a8fae',
+  yellow: '#FFEC27', gold: '#f2b63d', green: '#3fcf6a', red: '#e4573d', plum: '#7E2553', sky: '#29ADFF' };
+// load one image at a time and retry, so a small local server is never flooded
+const img = async (src, tries = 4) => { for (let k = 0; k < tries; k++) { try { return await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src + (k ? `?r=${k}` : ''); }); } catch (e) { await new Promise(r => setTimeout(r, 300)); } } throw new Error('load failed: ' + src); };
+const CAP = {}, SHEET = {};
+const rng = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+
+async function load() {
+  const names = ['title', 'play', 'levels', 'prep', 'boss', 'over', 'ranking', 'report'];
+  for (const n of names) CAP[n] = await img(`captures/${n}.png`);
+  SHEET.tiles = await img('../assets/sprites/tilemap_packed.png');
+  SHEET.chars = await img('../assets/sprites/tilemap-characters_packed.png');
+  const f = new FontFace(FONT, 'url(../assets/font/Galmuri11-Bold.woff2)'); await f.load(); document.fonts.add(f);
+}
+
+// ---------- drawing helpers ----------
+let c; // current 2d context
+const R = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+// a box with the game's notched pixel border
+function box(x, y, w, h, fill, border = PAL.paper, b = 8) {
+  R(x, y, w, h, fill);
+  R(x, y - b, w, b, border); R(x, y + h, w, b, border); R(x - b, y, b, h, border); R(x + w, y, b, h, border);
+}
+function txt(s, x, y, size, color, { align = 'center', stroke = Math.round(size / 7), shadow = null, base = 'middle' } = {}) {
+  c.font = `${size}px ${FONT}`; c.textAlign = align; c.textBaseline = base; c.lineJoin = 'round';
+  if (shadow) { const o = Math.max(3, Math.round(size / 14)); c.lineWidth = stroke; c.strokeStyle = shadow; c.strokeText(s, x + o, y + o); c.fillStyle = shadow; c.fillText(s, x + o, y + o); }
+  if (stroke) { c.lineWidth = stroke; c.strokeStyle = PAL.ink; c.strokeText(s, x, y); }
+  c.fillStyle = color; c.fillText(s, x, y);
+}
+const width = (s, size) => { c.font = `${size}px ${FONT}`; return c.measureText(s).width; };
+function sprite(id, cx, cy, sc) {
+  c.save(); c.imageSmoothingEnabled = false; c.translate(cx, cy); c.scale(sc, sc);
+  c.drawImage(SHEET.chars, (id % 9) * 24, Math.floor(id / 9) * 24, 24, 24, -12, -12, 24, 24); c.restore();
+}
+function tile(id, x, y, sc) { c.imageSmoothingEnabled = false; c.drawImage(SHEET.tiles, (id % 20) * 18, Math.floor(id / 20) * 18, 18, 18, x, y, 18 * sc, 18 * sc); }
+// a capture inside a pixel phone frame; crop = [x, y, w, h] in capture pixels (captures are 1170×2280)
+function phone(name, x, y, h, crop = [0, 0, 1170, 2280], tilt = 0) {
+  const [sx, sy, sw, sh] = crop, w = Math.round(h * sw / sh);
+  c.save(); c.translate(x + w / 2, y + h / 2); c.rotate(tilt); c.translate(-w / 2, -h / 2);
+  R(14, 14, w + 4, h + 4, 'rgba(0,0,0,.45)');            // drop shadow
+  box(-10, -10, w + 20, h + 20, PAL.ink, PAL.paper, 8);
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  c.drawImage(CAP[name], sx, sy, sw, sh, 0, 0, w, h);
+  c.restore();
+  return w;
+}
+function background(seed, accent = PAL.plum) {
+  const r = rng(seed);
+  for (let i = 0; i < 12; i++) R(0, i * H / 12, W, H / 12 + 1, `rgb(${[11, 16, 36].map((v, j) => Math.round(v + ([126, 37, 83][j] - v) * (i / 11) ** 2 * .55))})`);
+  for (let i = 0; i < 70; i++) { const s = r() < .2 ? 6 : 3; R(r() * W, r() * H * .8, s, s, `rgba(255,241,232,${.25 + r() * .5})`); }
+  // a row of the game's grass blocks along the bottom
+  for (let x = -20; x < W; x += 72) tile(0, x, H - 72, 4);
+}
+function header(n, label) {
+  sprite(0, 66, 66, 2.5);
+  txt('셈셈 점프', 112, 66, 36, PAL.yellow, { align: 'left', stroke: 6 });
+  if (label) txt(label, W - 60, 66, 36, PAL.silver, { align: 'right', stroke: 6 });
+  else txt(`${n} / ${TOTAL}`, W - 60, 66, 36, PAL.silver, { align: 'right', stroke: 6 });
+}
+function title(lines, y, size = 84, color = PAL.yellow) {
+  lines.forEach((l, i) => txt(l, W / 2, y + i * size * 1.22, size, i === lines.length - 1 ? color : PAL.paper, { shadow: PAL.plum, stroke: Math.round(size / 6) }));
+}
+// a numbered or bulleted item: badge + bold line + small line
+function item(x, y, w, badge, head, sub, color = PAL.yellow) {
+  const bh = sub ? 120 : 84;
+  box(x, y, w, bh, 'rgba(29,43,83,.92)', PAL.silver, 4);
+  R(x + 16, y + 18, 48, 48, color); txt(badge, x + 40, y + 43, 36, PAL.ink, { stroke: 0 });
+  txt(head, x + 84, y + 42, 36, PAL.paper, { align: 'left', stroke: 6 });
+  if (sub) txt(sub, x + 84, y + 90, 24, PAL.silver, { align: 'left', stroke: 0 });
+  return bh;
+}
+function chip(s, x, y, size = 36, fill = PAL.yellow, color = PAL.ink) {
+  const w = width(s, size) + 40;
+  box(x - w / 2, y - size * .8, w, size * 1.6, fill, PAL.paper, 4);
+  txt(s, x, y + 2, size, color, { stroke: 0 });
+  return w;
+}
+
+// ---------- the eight cards ----------
+const CARDS = [
+  // 1. cover
+  () => {
+    background(1); header(1, '초등 수학 게임');
+    txt('수학 문제 풀면', W / 2, 190, 60, PAL.paper, { stroke: 10 });
+    txt('계단이 생긴다?!', W / 2, 270, 60, PAL.paper, { stroke: 10 });
+    txt('셈셈 점프', W / 2, 410, 156, PAL.yellow, { shadow: PAL.plum, stroke: 24 });
+    phone('play', W / 2 - 170, 500, 640, [0, 0, 1170, 2110]);
+    // astronauts hopping up the stairs beside the phone
+    [[0, 160, 1050], [2, 920, 960], [4, 140, 820], [6, 940, 720]].forEach(([id, x, y]) => { tile(material(y), x - 36, y + 36, 4); sprite(id, x, y, 4); });
+    chip('무료 · 설치 없이 바로!', W / 2, 1218, 40, PAL.green, PAL.ink);
+    txt('넘겨서 더 보기 ▶', W - 50, 1150, 28, PAL.paper, { align: 'right', stroke: 6 });
+  },
+  // 2. how to play
+  () => {
+    background(2); header(2);
+    title(['이렇게 해요'], 190, 84);
+    phone('play', 70, 300, 900, [0, 0, 1170, 2280]);
+    let y = 320; const x = 560, w = 450;
+    y += item(x, y, w, '1', '위의 문제를 보고', '간판에 계산 문제가 나와요') + 28;
+    y += item(x, y, w, '2', '정답 계단을 꾹!', '왼쪽·오른쪽 버튼 (← → / A D)') + 28;
+    y += item(x, y, w, '3', '맞히면 한 층 위로', '틀리거나 시간이 끝나면 추락!', PAL.red) + 28;
+    y += item(x, y, w, '4', '10층 = 다음 레벨', '레벨마다 별 3개 모으기', PAL.green) + 28;
+    txt('오를수록 낮 → 노을 → 밤 → 우주!', x + w / 2, y + 40, 30, PAL.yellow, { stroke: 6 });
+  },
+  // 3. levels
+  () => {
+    background(3); header(3);
+    title(['1학년 덧셈부터', '5학년 혼합 계산까지'], 180, 72);
+    phone('levels', 590, 400, 520, [0, 120, 1170, 1320]);
+    let y = 400; const x = 70, w = 480;
+    [['1~2학년', '덧셈 · 뺄셈 · 받아올림', PAL.green], ['2학년', '곱셈구구 (단별 → 전체)', PAL.sky], ['3학년', '세 자리 · 곱셈 · 나눗셈', PAL.gold], ['5학년', '혼합 계산 (계산 순서)', PAL.red]]
+      .forEach(([g, s, col]) => { box(x, y, w, 120, 'rgba(29,43,83,.92)', PAL.silver, 4); R(x, y, 14, 120, col); txt(g, x + 40, y + 40, 40, col, { align: 'left', stroke: 6 }); txt(s, x + 40, y + 88, 30, PAL.paper, { align: 'left', stroke: 0 }); y += 150; });
+    txt('19단계 · 교과서 순서 그대로', x + w / 2, y + 30, 36, PAL.yellow, { stroke: 6 });
+    txt('10층에 오르면 다음 레벨이 열려요', x + w / 2, y + 90, 26, PAL.silver, { stroke: 0 });
+  },
+  // 4. boss
+  () => {
+    background(4, PAL.red); header(4);
+    title(['10층마다', '보스 등장!'], 180, 84, PAL.red);
+    phone('boss', 70, 420, 820, [0, 0, 1170, 1900]);
+    const x = 620, cx = x + 200;
+    txt('같은 기능의', cx, 470, 40, PAL.paper, { stroke: 6 });
+    txt('응용 문제로 공격!', cx, 530, 40, PAL.yellow, { stroke: 6 });
+    chip('? × 8 = 56', cx, 650, 44, PAL.paper);
+    chip('6 × 7 + 5 = ?', cx, 770, 44, PAL.paper);
+    chip('408 × 6 = ?', cx, 890, 44, PAL.paper);
+    txt('빈칸 찾기 · 검산 · 실수 잘하는 0', cx, 980, 24, PAL.silver, { stroke: 0 });
+    for (let i = 0; i < 3; i++) R(cx - 96 + i * 72, 1060, 48, 36, PAL.red);
+    txt('3번 맞히면 보물 코인!', cx, 1150, 36, PAL.gold, { stroke: 6 });
+  },
+  // 5. designed for learning
+  () => {
+    background(5); header(5);
+    title(['찍기로는', '못 올라가요'], 180, 84);
+    phone('prep', 640, 420, 760, [0, 0, 1170, 2200]);
+    let y = 440; const x = 60, w = 540;
+    y += item(x, y, w, '!', '오답 = 진짜 실수', '받아올림 깜빡 · 옆 단 구구 · 순서 무시') + 26;
+    y += item(x, y, w, '?', '생각을 돕는 아이템', '어림 돋보기 · 멈춤 시계 (정답 X)', PAL.sky) + 26;
+    y += item(x, y, w, 'O', '문제 15만 개 검사', '오답 · 음수 · 받아올림 조건 0건', PAL.green) + 26;
+    y += item(x, y, w, '★', '코인 · 보스 · 별', '한 판 더! 를 부르는 재미', PAL.gold) + 26;
+  },
+  // 6. learning report
+  () => {
+    background(6); header(6);
+    title(['약한 부분이', '한눈에 보여요'], 180, 84, PAL.green);
+    phone('report', 60, 420, 700, [0, 120, 1170, 1830]);
+    let y = 440; const x = 580, w = 440;
+    y += item(x, y, w, '1', '레벨별 정답률', '푼 문제 · 시간 초과 · 평균 시간', PAL.green) + 26;
+    y += item(x, y, w, '2', '"연습 필요" 표시', '가장 약한 레벨을 알려줘요', PAL.red) + 26;
+    y += item(x, y, w, '3', '최근 틀린 문제', '정답과 함께 다시 보기', PAL.gold) + 26;
+    y += item(x, y, w, '4', '한 기기 여러 명', '별명별로 기록이 따로', PAL.sky) + 26;
+  },
+  // 7. class ranking
+  () => {
+    background(7); header(7);
+    title(['우리 반 랭킹으로', '함께 겨뤄요'], 180, 76);
+    phone('ranking', 50, 400, 470, [0, 120, 1170, 1440], -.03);
+    phone('over', 235, 650, 470, [0, 120, 1170, 1440], .03);
+    const x = 672, w = 368; let y = 420;
+    txt('선생님', x + w / 2, y, 36, PAL.yellow, { stroke: 6 }); y += 50;
+    y += item(x, y, w, '1', '학급 만들기', null) + 22;
+    y += item(x, y, w, '2', '코드 6자리 공유', null) + 40;
+    txt('학생', x + w / 2, y, 36, PAL.yellow, { stroke: 6 }); y += 50;
+    y += item(x, y, w, '1', '코드 입력', null, PAL.green) + 22;
+    y += item(x, y, w, '2', '끝나면 자동 등록', null, PAL.green) + 30;
+    txt('별명 · 층수만 저장', x + w / 2, y + 10, 26, PAL.silver, { stroke: 0 });
+    txt('30일 뒤 자동 삭제', x + w / 2, y + 48, 26, PAL.silver, { stroke: 0 });
+  },
+  // 8. call to action
+  () => {
+    background(8); header(8);
+    title(['지금 바로', '폴짝!'], 190, 96);
+    // QR code drawn as chunky pixels
+    const q = qrcode(0, 'M'); q.addData('https://semsemjump.github.io'); q.make();
+    const n = q.getModuleCount(), cell = Math.floor(340 / (n + 4)), size = cell * (n + 4), qx = W / 2 - size / 2, qy = 430;
+    box(qx, qy, size, size, PAL.paper, PAL.yellow, 10);
+    for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (q.isDark(r, k)) R(qx + (k + 2) * cell, qy + (r + 2) * cell, cell, cell, PAL.night);
+    const uy = qy + size + 90;
+    box(W / 2 - 420, uy - 56, 840, 112, PAL.navy, PAL.paper, 8);
+    txt('semsemjump.github.io', W / 2, uy, 60, PAL.paper, { stroke: 0 });
+    txt('무료 · 광고 없음 · 회원가입 없음', W / 2, uy + 120, 36, PAL.green, { stroke: 6 });
+    txt('휴대폰 · 태블릿 · PC 브라우저에서 바로', W / 2, uy + 176, 30, PAL.paper, { stroke: 6 });
+    [0, 2, 4, 6, 9].forEach((id, i) => sprite(id, W / 2 + (i - 2) * 130, H - 150, 4));
+    txt('만든이 빵쌤 (ppang_sem)', W / 2, H - 230, 30, PAL.silver, { stroke: 6 });
+  },
+];
+const material = y => 0;
+
+window.cards = {
+  async exportAll() {
+    for (let i = 0; i < CARDS.length; i++) {
+      const cv = document.getElementById('card' + i);
+      const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
+      await fetch(`/card?n=${i + 1}`, { method: 'POST', body: blob });
+    }
+    return CARDS.length;
+  },
+};
+load().then(() => {
+  CARDS.forEach((draw, i) => {
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; cv.id = 'card' + i;
+    document.body.appendChild(cv); c = cv.getContext('2d'); draw();
+  });
+  window.cards.ready = true;
+});
+</script>
